@@ -1,0 +1,26 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.6.7",
+    "@types/node": "^18",
+    "@vitest/coverage-c8": "^0.30.1",
+    "nuxt": "^3.4.2",
+    "nuxt-vitest": "^0.6.10"
+  },
+  "dependencies": {
+    "@nuxt/content": "^2.6.0",
+    "@tailwindcss/typography": "^0.5.9",
+    "daisyui": "^2.51.6",
+    "node": "^16.14.0"
+  }
+}
