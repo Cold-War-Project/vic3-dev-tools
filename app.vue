@@ -92,7 +92,6 @@ const workingGroup = ref<WorkingGroup>({
 });
 
 const parseData = () => {
-  console.log(`data is being parsed`);
   // Reset the codeblocks variable
   let numberOpenBrackets = 0;
   let numberClosedBrackets = 0;
@@ -123,14 +122,6 @@ const parseData = () => {
   }
 };
 
-// Makes the color the input box matching the invalidValue red when called
-const valueIsInvalid = (invalidValue: string) => {
-  const inputBox = document.getElementById(invalidValue);
-  if (inputBox) {
-    inputBox.style.backgroundColor = "red";
-  }
-};
-
 const getNumWorkersForJob = (popType: string, button: string): number => {
   let numWorkers = 0;
   let numWorkersForJobCodeblock = codeblocks.value[button];
@@ -145,7 +136,6 @@ const getNumWorkersForJob = (popType: string, button: string): number => {
 };
 
 const updateWorkingGroup = () => {
-  console.log(`updating working group`);
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
     workingGroup.value[popTypes.value[i]] = getNumWorkersForJob(
@@ -155,24 +145,25 @@ const updateWorkingGroup = () => {
     total += workingGroup.value[popTypes.value[i]];
   }
   workingGroup.value.total = total;
-  console.log(popTypeId.value);
 };
 
 const updatePreviousWorkingGroup = () => {
-  console.log(`updating previous working group`);
   for (let prop in workingGroup.value) {
     previousWorkingGroup[prop] = workingGroup.value[prop];
   }
-  console.log(previousWorkingGroup);
 };
 
-const updateData = (changedProperty: string) => {
+const updateData = async (changedProperty: string) => {
   if (changedProperty == "" || changedProperty == null) {
     return;
   }
   // for the changedProperty, grab the old value from the previousWorkingGroup and the new value from the workingGroup object
-  const oldValue = previousWorkingGroup[changedProperty];
-  const newValue = workingGroup.value[changedProperty];
+  //hack this is to avoid infinite percent change if 0 was in the denominator (see percentChange below)
+  const oldValMain =
+    previousWorkingGroup[changedProperty] === 0
+      ? 1
+      : previousWorkingGroup[changedProperty];
+  const newValMain = workingGroup.value[changedProperty];
 
   //get the property names of all the non-zero properties in the workingGroup object also excluding the total property and the changed property
   const nonZeroProperties = Object.keys(workingGroup.value).filter(
@@ -186,64 +177,37 @@ const updateData = (changedProperty: string) => {
     return;
   }
 
-  //get the difference of the old and new values
-  let difference = newValue - oldValue;
-  console.log(`difference is ${difference}`);
-  let differencePerProperty: number = Math.floor(
-    difference / nonZeroProperties.length
-  );
-  let differenceRemainder = difference % nonZeroProperties.length;
+  //get the percentChange from the old to new value
+  const percentChange = (newValMain - oldValMain) / oldValMain;
 
-  //if the difference is positive, then the value of the changedProperty has increased. Divide the difference by the number of non-zero properties and subtract that value from each non-zero property
-  if (difference > 0) {
-    for (let i = 0; i < nonZeroProperties.length; i++) {
-      if (
-        (workingGroup.value[nonZeroProperties[i]] -= differencePerProperty) <= 0
-      ) {
-        valueIsInvalid(nonZeroProperties[i]);
-        return;
-      }
-      workingGroup.value[nonZeroProperties[i]] -= differencePerProperty;
-    }
-  } else if (difference < 0) {
-    for (let j = 0; j < nonZeroProperties.length; j++) {
-      if (
-        (workingGroup.value[nonZeroProperties[j]] -= differencePerProperty) <=
-        workingGroup.value.total
-      ) {
-        valueIsInvalid(nonZeroProperties[j]);
-        return;
-      }
-      workingGroup.value[nonZeroProperties[j]] -= differencePerProperty;
-    }
-  } else {
-    return;
-  }
+  //divide the percentChange by the number of non-zero properties
+  //const percentChangePerProperty = percentChange / nonZeroProperties.length;
 
-  // If the differenceRemainder isn't equal to 0, then add the remainder to the largest non-zero property
-  if (differenceRemainder !== 0) {
-    let largestNonZeroProperty = nonZeroProperties[0];
-    for (let k = 0; k < nonZeroProperties.length; k++) {
-      if (
-        workingGroup.value[nonZeroProperties[k]] >
-        workingGroup.value[largestNonZeroProperty]
-      ) {
-        largestNonZeroProperty = nonZeroProperties[k];
-      }
+  //for each non-zero property, multiply the percentChangePerProperty by the old value and add that to the old value to get the new value
+  for (let i = 0; i < nonZeroProperties.length; i++) {
+    let prop = nonZeroProperties[i];
+    let oldVal = previousWorkingGroup[prop];
+    let newVal = Math.floor(oldVal + oldVal * percentChange);
+    if (newVal <= 0) {
+      // valueIsInvalid(prop);
+      console.error(
+        `new value is ${newVal}, which is less than 0 for ${prop} property`
+      );
+      return;
     }
-    workingGroup.value[largestNonZeroProperty] += differenceRemainder;
+    if (prop === "total") continue;
+    if (prop === changedProperty) continue;
+    workingGroup.value[prop] = newVal;
   }
 
   //Double check that the total is still equal workingGroup.total, if it isn't throw an error
   let total = 0;
-  for (let prop in workingGroup.value) {
-    if (prop !== "total") total += workingGroup.value[prop];
-    else continue;
+  for (let i = 0; i < popTypes.value.length; i++) {
+    if (popTypes.value[i] === "total") continue;
+    total += workingGroup.value[popTypes.value[i]];
   }
   if (total !== workingGroup.value.total) {
-    console.error(
-      `total of workingGroup is not equal to workingGroup.total, something went wrong`
-    );
+    workingGroup.value[changedProperty] += workingGroup.value.total - total;
   }
 
   //save the modified workingGroup data to the codeblocks array
@@ -255,7 +219,9 @@ const updateData = (changedProperty: string) => {
       ] = `${changedProperty}=${workingGroup.value[changedProperty]}`;
     }
   }
+
   codeblocks.value[activeButton.value] = codeblock;
+  updateWorkingGroup();
 };
 
 onBeforeMount(() => {
@@ -283,14 +249,7 @@ watch(
         </div>
       </div>
       <div class="flex flex-col" v-if="activeButton">
-        <form
-          v-on:submit.prevent="
-            {
-              setMode();
-            }
-          "
-          class="form-control flex flex-row flex-wrap my-2 gap-5"
-        >
+        <form class="form-control flex flex-row flex-wrap my-2 gap-5">
           <label class="input-group input-group-horizontal input-group-xs">
             <span>Total workers for {{ activeButton }}</span>
             <input
@@ -317,16 +276,10 @@ watch(
                 v-model.number.trim.lazy="workingGroup[popType]"
                 @focus="updatePreviousWorkingGroup()"
                 @change.prevent="updateData(popType)"
+                @keyup.enter.prevent="$event.target.blur()"
               />
             </label>
           </div>
-          <button
-            type="submit"
-            :disabled="nextMode == modes.save ? true : false"
-            class="btn btn-primary"
-          >
-            Save
-          </button>
         </form>
       </div>
     </div>
