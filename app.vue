@@ -11,11 +11,9 @@ const buttons = useButtons();
 const activeButton = buttons.activeButton;
 
 const mode = useMode();
-const currentMode = mode.currentMode;
+const nextMode = mode.currentMode;
 
-const changedProperty = ref("");
-
-const isSaving = ref(false);
+const popTypeId = ref([]);
 
 const popTypes = ref([
   "academics",
@@ -55,7 +53,7 @@ interface WorkingGroup {
   [key: string]: number;
 }
 
-const previousWorkingGroup = ref<WorkingGroup>({
+let previousWorkingGroup: WorkingGroup = {
   academics: 0,
   administrators: 0,
   artisans: 0,
@@ -72,7 +70,7 @@ const previousWorkingGroup = ref<WorkingGroup>({
   servicemembers: 0,
   technicians: 0,
   total: 0,
-});
+};
 
 const workingGroup = ref<WorkingGroup>({
   academics: 0,
@@ -125,6 +123,14 @@ const parseData = () => {
   }
 };
 
+// Makes the color the input box matching the invalidValue red when called
+const valueIsInvalid = (invalidValue: string) => {
+  const inputBox = document.getElementById(invalidValue);
+  if (inputBox) {
+    inputBox.style.backgroundColor = "red";
+  }
+};
+
 const getNumWorkersForJob = (popType: string, button: string): number => {
   let numWorkers = 0;
   let numWorkersForJobCodeblock = codeblocks.value[button];
@@ -149,44 +155,95 @@ const updateWorkingGroup = () => {
     total += workingGroup.value[popTypes.value[i]];
   }
   workingGroup.value.total = total;
+  console.log(popTypeId.value);
+};
+
+const updatePreviousWorkingGroup = () => {
+  console.log(`updating previous working group`);
+  for (let prop in workingGroup.value) {
+    previousWorkingGroup[prop] = workingGroup.value[prop];
+  }
+  console.log(previousWorkingGroup);
 };
 
 const updateData = (changedProperty: string) => {
-  if (changedProperty == "") {
+  if (changedProperty == "" || changedProperty == null) {
     return;
   }
-  previousWorkingGroup.value = workingGroup.value;
-  // setting `isSaving` to true will sync the workingGroup data with the data currently displayed on screen by updating the v-model property below.
-  isSaving.value = true;
-  //Debug
-  console.log(`updating original data array`);
-
   // for the changedProperty, grab the old value from the previousWorkingGroup and the new value from the workingGroup object
-  const oldValue = previousWorkingGroup.value[changedProperty];
+  const oldValue = previousWorkingGroup[changedProperty];
   const newValue = workingGroup.value[changedProperty];
 
-  //get the property names of all the non-zero properties in the workingGroup object
+  //get the property names of all the non-zero properties in the workingGroup object also excluding the total property and the changed property
   const nonZeroProperties = Object.keys(workingGroup.value).filter(
-    (prop) => workingGroup.value[prop] !== 0
+    (key) =>
+      workingGroup.value[key] !== 0 &&
+      key !== "total" &&
+      key !== changedProperty
   );
 
-  //divide the difference of the new and old values by the number of non-zero properties
-  const difference = (newValue - oldValue) / nonZeroProperties.length;
+  if (nonZeroProperties.length === 0) {
+    return;
+  }
 
-  //disperse that difference across all the non-zero properties
-  nonZeroProperties.forEach((prop) => {
-    workingGroup.value[prop] += difference;
-  });
+  //get the difference of the old and new values
+  let difference = newValue - oldValue;
+  console.log(`difference is ${difference}`);
+  let differencePerProperty: number = Math.floor(
+    difference / nonZeroProperties.length
+  );
+  let differenceRemainder = difference % nonZeroProperties.length;
 
-  //debug double check that the total value still equals the sum of all other properties in the workingGroup object
+  //if the difference is positive, then the value of the changedProperty has increased. Divide the difference by the number of non-zero properties and subtract that value from each non-zero property
+  if (difference > 0) {
+    for (let i = 0; i < nonZeroProperties.length; i++) {
+      if (
+        (workingGroup.value[nonZeroProperties[i]] -= differencePerProperty) <= 0
+      ) {
+        valueIsInvalid(nonZeroProperties[i]);
+        return;
+      }
+      workingGroup.value[nonZeroProperties[i]] -= differencePerProperty;
+    }
+  } else if (difference < 0) {
+    for (let j = 0; j < nonZeroProperties.length; j++) {
+      if (
+        (workingGroup.value[nonZeroProperties[j]] -= differencePerProperty) <=
+        workingGroup.value.total
+      ) {
+        valueIsInvalid(nonZeroProperties[j]);
+        return;
+      }
+      workingGroup.value[nonZeroProperties[j]] -= differencePerProperty;
+    }
+  } else {
+    return;
+  }
+
+  // If the differenceRemainder isn't equal to 0, then add the remainder to the largest non-zero property
+  if (differenceRemainder !== 0) {
+    let largestNonZeroProperty = nonZeroProperties[0];
+    for (let k = 0; k < nonZeroProperties.length; k++) {
+      if (
+        workingGroup.value[nonZeroProperties[k]] >
+        workingGroup.value[largestNonZeroProperty]
+      ) {
+        largestNonZeroProperty = nonZeroProperties[k];
+      }
+    }
+    workingGroup.value[largestNonZeroProperty] += differenceRemainder;
+  }
+
+  //Double check that the total is still equal workingGroup.total, if it isn't throw an error
   let total = 0;
-  for (let i = 0; i < popTypes.value.length; i++) {
-    total += workingGroup.value[popTypes.value[i]];
+  for (let prop in workingGroup.value) {
+    if (prop !== "total") total += workingGroup.value[prop];
+    else continue;
   }
   if (total !== workingGroup.value.total) {
-    console.error(`total is not equal to sum of all other properties`);
-    console.log(`total: ${total}`);
-    console.log(`sum of all other properties: ${workingGroup.value.total}`);
+    console.error(
+      `total of workingGroup is not equal to workingGroup.total, something went wrong`
+    );
   }
 
   //save the modified workingGroup data to the codeblocks array
@@ -199,22 +256,6 @@ const updateData = (changedProperty: string) => {
     }
   }
   codeblocks.value[activeButton.value] = codeblock;
-  //debug
-  console.log(`codeblocks:`);
-  console.log(codeblocks.value);
-  //debug
-  console.log(`workingGroup:`);
-  console.log(workingGroup.value);
-  //debug
-  console.log(`previousWorkingGroup:`);
-  console.log(previousWorkingGroup.value);
-  //debug
-  console.log(`isSaving: ${isSaving.value}`);
-  //debug
-  console.log(`activeButton: ${activeButton.value}`);
-  //debug
-  console.log(`changedProperty: ${changedProperty}`);
-  //debug
 };
 
 onBeforeMount(() => {
@@ -245,7 +286,6 @@ watch(
         <form
           v-on:submit.prevent="
             {
-              updateData(changedProperty);
               setMode();
             }
           "
@@ -255,9 +295,8 @@ watch(
             <span>Total workers for {{ activeButton }}</span>
             <input
               type="text"
-              :disabled="currentMode == modes.save ? true : false"
-              :placeholder="workingGroup.total"
-              v-model="workingGroup.total"
+              :disabled="nextMode == modes.save ? true : false"
+              v-model.number="workingGroup.total"
               class="input input-bordered"
             />
           </label>
@@ -271,18 +310,19 @@ watch(
             >
               <span>{{ popType }}</span>
               <input
-                @change="updateData(popType)"
                 type="text"
-                :disabled="currentMode == modes.save ? true : false"
+                ref="popTypeId"
+                :disabled="nextMode == modes.save ? true : false"
                 class="input input-bordered w-20"
-                :placeholder="workingGroup[popType]"
-                :v-model="isSaving ? workingGroup[popType] : false"
+                v-model.number.trim.lazy="workingGroup[popType]"
+                @focus="updatePreviousWorkingGroup()"
+                @change.prevent="updateData(popType)"
               />
             </label>
           </div>
           <button
             type="submit"
-            :disabled="currentMode == modes.save ? true : false"
+            :disabled="nextMode == modes.save ? true : false"
             class="btn btn-primary"
           >
             Save
