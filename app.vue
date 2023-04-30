@@ -11,11 +11,9 @@ const buttons = useButtons();
 const activeButton = buttons.activeButton;
 
 const mode = useMode();
-const currentMode = mode.currentMode;
+const nextMode = mode.currentMode;
 
-const changedProperty = ref("");
-
-const isSaving = ref(false);
+const popTypeId = ref([]);
 
 const popTypes = ref([
   "academics",
@@ -55,7 +53,7 @@ interface WorkingGroup {
   [key: string]: number;
 }
 
-const previousWorkingGroup = ref<WorkingGroup>({
+let previousWorkingGroup: WorkingGroup = {
   academics: 0,
   administrators: 0,
   artisans: 0,
@@ -72,7 +70,7 @@ const previousWorkingGroup = ref<WorkingGroup>({
   servicemembers: 0,
   technicians: 0,
   total: 0,
-});
+};
 
 const workingGroup = ref<WorkingGroup>({
   academics: 0,
@@ -94,7 +92,6 @@ const workingGroup = ref<WorkingGroup>({
 });
 
 const parseData = () => {
-  console.log(`data is being parsed`);
   // Reset the codeblocks variable
   let numberOpenBrackets = 0;
   let numberClosedBrackets = 0;
@@ -139,7 +136,6 @@ const getNumWorkersForJob = (popType: string, button: string): number => {
 };
 
 const updateWorkingGroup = () => {
-  console.log(`updating working group`);
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
     workingGroup.value[popTypes.value[i]] = getNumWorkersForJob(
@@ -151,42 +147,67 @@ const updateWorkingGroup = () => {
   workingGroup.value.total = total;
 };
 
-const updateData = (changedProperty: string) => {
-  if (changedProperty == "") {
+const updatePreviousWorkingGroup = () => {
+  for (let prop in workingGroup.value) {
+    previousWorkingGroup[prop] = workingGroup.value[prop];
+  }
+};
+
+const updateData = async (changedProperty: string) => {
+  if (changedProperty == "" || changedProperty == null) {
     return;
   }
-  previousWorkingGroup.value = workingGroup.value;
-  // setting `isSaving` to true will sync the workingGroup data with the data currently displayed on screen by updating the v-model property below.
-  isSaving.value = true;
-  //Debug
-  console.log(`updating original data array`);
-
   // for the changedProperty, grab the old value from the previousWorkingGroup and the new value from the workingGroup object
-  const oldValue = previousWorkingGroup.value[changedProperty];
-  const newValue = workingGroup.value[changedProperty];
+  //hack this is to avoid infinite percent change if 0 was in the denominator (see percentChange below)
+  const oldValMain =
+    previousWorkingGroup[changedProperty] === 0
+      ? 1
+      : previousWorkingGroup[changedProperty];
+  const newValMain = workingGroup.value[changedProperty];
 
-  //get the property names of all the non-zero properties in the workingGroup object
+  //get the property names of all the non-zero properties in the workingGroup object also excluding the total property and the changed property
   const nonZeroProperties = Object.keys(workingGroup.value).filter(
-    (prop) => workingGroup.value[prop] !== 0
+    (key) =>
+      workingGroup.value[key] !== 0 &&
+      key !== "total" &&
+      key !== changedProperty
   );
 
-  //divide the difference of the new and old values by the number of non-zero properties
-  const difference = (newValue - oldValue) / nonZeroProperties.length;
+  if (nonZeroProperties.length === 0) {
+    return;
+  }
 
-  //disperse that difference across all the non-zero properties
-  nonZeroProperties.forEach((prop) => {
-    workingGroup.value[prop] += difference;
-  });
+  //get the percentChange from the old to new value
+  const percentChange = (newValMain - oldValMain) / oldValMain;
 
-  //debug double check that the total value still equals the sum of all other properties in the workingGroup object
+  //divide the percentChange by the number of non-zero properties
+  //const percentChangePerProperty = percentChange / nonZeroProperties.length;
+
+  //for each non-zero property, multiply the percentChangePerProperty by the old value and add that to the old value to get the new value
+  for (let i = 0; i < nonZeroProperties.length; i++) {
+    let prop = nonZeroProperties[i];
+    let oldVal = previousWorkingGroup[prop];
+    let newVal = Math.floor(oldVal + oldVal * percentChange);
+    if (newVal <= 0) {
+      // valueIsInvalid(prop);
+      console.error(
+        `new value is ${newVal}, which is less than 0 for ${prop} property`
+      );
+      return;
+    }
+    if (prop === "total") continue;
+    if (prop === changedProperty) continue;
+    workingGroup.value[prop] = newVal;
+  }
+
+  //Double check that the total is still equal workingGroup.total, if it isn't throw an error
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
+    if (popTypes.value[i] === "total") continue;
     total += workingGroup.value[popTypes.value[i]];
   }
   if (total !== workingGroup.value.total) {
-    console.error(`total is not equal to sum of all other properties`);
-    console.log(`total: ${total}`);
-    console.log(`sum of all other properties: ${workingGroup.value.total}`);
+    workingGroup.value[changedProperty] += workingGroup.value.total - total;
   }
 
   //save the modified workingGroup data to the codeblocks array
@@ -198,23 +219,9 @@ const updateData = (changedProperty: string) => {
       ] = `${changedProperty}=${workingGroup.value[changedProperty]}`;
     }
   }
+
   codeblocks.value[activeButton.value] = codeblock;
-  //debug
-  console.log(`codeblocks:`);
-  console.log(codeblocks.value);
-  //debug
-  console.log(`workingGroup:`);
-  console.log(workingGroup.value);
-  //debug
-  console.log(`previousWorkingGroup:`);
-  console.log(previousWorkingGroup.value);
-  //debug
-  console.log(`isSaving: ${isSaving.value}`);
-  //debug
-  console.log(`activeButton: ${activeButton.value}`);
-  //debug
-  console.log(`changedProperty: ${changedProperty}`);
-  //debug
+  updateWorkingGroup();
 };
 
 onBeforeMount(() => {
@@ -242,22 +249,13 @@ watch(
         </div>
       </div>
       <div class="flex flex-col" v-if="activeButton">
-        <form
-          v-on:submit.prevent="
-            {
-              updateData(changedProperty);
-              setMode();
-            }
-          "
-          class="form-control flex flex-row flex-wrap my-2 gap-5"
-        >
+        <form class="form-control flex flex-row flex-wrap my-2 gap-5">
           <label class="input-group input-group-horizontal input-group-xs">
             <span>Total workers for {{ activeButton }}</span>
             <input
               type="text"
-              :disabled="currentMode == modes.save ? true : false"
-              :placeholder="workingGroup.total"
-              v-model="workingGroup.total"
+              :disabled="nextMode == modes.save ? true : false"
+              v-model.number="workingGroup.total"
               class="input input-bordered"
             />
           </label>
@@ -271,22 +269,17 @@ watch(
             >
               <span>{{ popType }}</span>
               <input
-                @change="updateData(popType)"
                 type="text"
-                :disabled="currentMode == modes.save ? true : false"
+                ref="popTypeId"
+                :disabled="nextMode == modes.save ? true : false"
                 class="input input-bordered w-20"
-                :placeholder="workingGroup[popType]"
-                :v-model="isSaving ? workingGroup[popType] : false"
+                v-model.number.trim.lazy="workingGroup[popType]"
+                @focus="updatePreviousWorkingGroup()"
+                @change.prevent="updateData(popType)"
+                @keyup.enter.prevent="$event.target.blur()"
               />
             </label>
           </div>
-          <button
-            type="submit"
-            :disabled="currentMode == modes.save ? true : false"
-            class="btn btn-primary"
-          >
-            Save
-          </button>
         </form>
       </div>
     </div>

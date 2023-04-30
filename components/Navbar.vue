@@ -24,7 +24,6 @@ const activeButton = buttons.activeButton;
       >
         {{ currentMode == "Edit" ? "Return to Safety" : "Enter Edit Mode" }}
       </button>
-      <p v-if="currentMode == 'Edit'">🛑 any changes will not be saved!</p>
     </div>
   </div>
 </template>
