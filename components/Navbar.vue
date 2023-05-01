@@ -9,7 +9,7 @@ const activeButton = buttons.activeButton;
 </script>
 
 <template>
-  <div class="w-full flex flex-row items-center justify-between my-5">
+  <div class="w-full flex flex-row items-center justify-between my-10">
     <div class="prose">
       <h1 v-if="currentMode == 'Save'" class="p-2">PM Alligator 🐊</h1>
       <h1 v-else class="bg-error text-error-content p-2">

@@ -39,7 +39,7 @@ const nextMode = mode.currentMode;
 /**
  * A reference to the array of HTML input elements for each corresponding pop type.
  */
-const popTypeId = ref([]);
+const popTypeInputId = ref([]);
 
 /**
  * A reference to the array of population types.
@@ -205,8 +205,8 @@ const roundToNearest100 = (num: number) => {
  */
 const getTotal = (): number => {
   let total = 0;
-  for (let it = 0; it < popTypes.value.length; it++) {
-    total += workingGroup.value[popTypes.value[it]];
+  for (let i = 0; i < popTypes.value.length; i++) {
+    total += workingGroup.value[popTypes.value[i]];
   }
   return total;
 };
@@ -287,7 +287,6 @@ const handlePositiveDiff = (nonZeroBuckets: string[], diff: number) => {
  * @param nonZeroBuckets - The list of non-zero buckets.
  * @param diff - The negative difference.
  */
-
 const handleNegativeDiff = (nonZeroBuckets: string[], diff: number) => {
   redistributeDiff(nonZeroBuckets, -diff, true);
   if (getTotal() < workingGroup.value.total) {
@@ -325,6 +324,11 @@ const updateData = (changedProperty: string) => {
   );
 
   let diff = getTotal() - workingGroup.value.total;
+  //Debug
+  console.log(`total: ${getTotal()}`);
+  console.log(`workingGroup total:`);
+  console.log(workingGroup.value.total);
+  console.log(`diff: ${diff}`);
 
   if (diff > 0) {
     handlePositiveDiff(nonZeroBuckets, diff);
@@ -354,7 +358,6 @@ const sliderLeft = computed(() => {
     thumbHalfWidth / 2
   );
 });
-
 /**
  * Executes the parseData function before the component is mounted.
  */
@@ -379,16 +382,20 @@ watch(
     <div class="flex flex-col items-center">
       <Navbar>
         <div class="flex flex-col">
-          <label class="label">Scroll Speed</label>
           <div class="flex flex-col">
-            <input
-              type="range"
-              min="0"
-              max="10"
-              v-model="scrollSpeed"
-              class="range range-secondary w-56"
-              step="1"
-            />
+            <div
+              class="tooltip tooltip-top"
+              data-tip="🏃‍♂️ Sets horizontal scroll speed of box below"
+            >
+              <input
+                type="range"
+                min="0"
+                max="10"
+                v-model="scrollSpeed"
+                class="range range-secondary w-56"
+                step="1"
+              />
+            </div>
             <label
               class="label relative"
               :style="`left: ${sliderLeft}px; padding: 0px`"
@@ -429,9 +436,9 @@ watch(
               <span>{{ popType }}</span>
               <input
                 type="text"
-                ref="popTypeId"
+                ref="popTypeInputId"
                 :disabled="nextMode == modes.save ? true : false"
-                class="input input-bordered w-20"
+                class="input input-bordered w-20 transition ease-in-out duration-300 focus:input-secondary"
                 v-model.number.trim.lazy="workingGroup[popType]"
                 @focus="updatePreviousWorkingGroup()"
                 @change.prevent="updateData(popType)"

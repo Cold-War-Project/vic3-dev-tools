@@ -29,7 +29,8 @@ watch(
     <button
       @click="handlePMSelect"
       :disabled="currentMode == 'Save' || isActiveButton ? false : true"
-      :class="isActiveButton ? 'btn btn-xs btn-primary' : 'btn btn-xs'"
+      class="btn btn-xs"
+      :class="isActiveButton ? 'btn-primary' : ''"
     >
       {{ buttonName }}
     </button>
