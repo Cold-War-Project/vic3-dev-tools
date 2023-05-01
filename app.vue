@@ -211,18 +211,24 @@ const getTotal = (): number => {
   return total;
 };
 
+const getNonZeroBuckets = (filter: string): string[] => {
+  return popTypes.value.filter(
+    (popType) => workingGroup.value[popType] > 0 && popType !== filter
+  );
+};
+
 /**
  * Redistributes the difference between the new and old working group values among the non-zero buckets.
  *
- * @param nonZeroBuckets - The list of non-zero buckets.
  * @param diff - The difference between the new and old working group values.
  * @param increase - Whether to increase or decrease the values.
  */
 const redistributeDiff = (
-  nonZeroBuckets: string[],
+  changedProperty: string,
   diff: number,
   increase: boolean
 ) => {
+  let nonZeroBuckets = getNonZeroBuckets(changedProperty);
   for (let i in nonZeroBuckets) {
     let proportion =
       workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
@@ -235,16 +241,15 @@ const redistributeDiff = (
 
 /**
  * Adjusts the largest or smallest bucket to account for the remaining difference.
- *
- * @param nonZeroBuckets - The list of non-zero buckets.
  * @param diff - The remaining difference.
  * @param findLargest - Whether to find the largest or smallest bucket.
  */
 const adjustLargestOrSmallestBucket = (
-  nonZeroBuckets: string[],
+  changedProperty: string,
   diff: number,
   findLargest: boolean
 ) => {
+  let nonZeroBuckets = getNonZeroBuckets(changedProperty);
   let targetBucket: string = "";
 
   for (let i in nonZeroBuckets) {
@@ -270,28 +275,26 @@ const adjustLargestOrSmallestBucket = (
 /**
  * Handles a positive difference between the new and old working group values.
  *
- * @param nonZeroBuckets - The list of non-zero buckets.
  * @param diff - The positive difference.
  */
-const handlePositiveDiff = (nonZeroBuckets: string[], diff: number) => {
-  redistributeDiff(nonZeroBuckets, diff, false);
+const handlePositiveDiff = (changedProperty: string, diff: number) => {
+  redistributeDiff(changedProperty, diff, false);
   if (getTotal() > workingGroup.value.total) {
     diff = getTotal() - workingGroup.value.total;
-    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, false);
+    adjustLargestOrSmallestBucket(changedProperty, diff, false);
   }
 };
 
 /**
  * Handles a negative difference between the new and old working group values.
  *
- * @param nonZeroBuckets - The list of non-zero buckets.
  * @param diff - The negative difference.
  */
-const handleNegativeDiff = (nonZeroBuckets: string[], diff: number) => {
-  redistributeDiff(nonZeroBuckets, -diff, true);
+const handleNegativeDiff = (changedProperty: string, diff: number) => {
+  redistributeDiff(changedProperty, diff, true);
   if (getTotal() < workingGroup.value.total) {
     diff = getTotal() - workingGroup.value.total;
-    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, true);
+    adjustLargestOrSmallestBucket(changedProperty, diff, true);
   }
 };
 
@@ -318,26 +321,16 @@ const updateCodeblock = () => {
  *
  * @param changedProperty - The changed property.
  */
-const updateData = (changedProperty: string) => {
-  let nonZeroBuckets = popTypes.value.filter(
-    (popType) => workingGroup.value[popType] > 0 && popType !== changedProperty
-  );
-
+const updateData = async (changedProperty: string) => {
   let diff = getTotal() - workingGroup.value.total;
-  //Debug
-  console.log(`total: ${getTotal()}`);
-  console.log(`workingGroup total:`);
-  console.log(workingGroup.value.total);
-  console.log(`diff: ${diff}`);
 
   if (diff > 0) {
-    handlePositiveDiff(nonZeroBuckets, diff);
+    handlePositiveDiff(changedProperty, diff);
   } else if (diff < 0) {
-    handleNegativeDiff(nonZeroBuckets, diff);
+    handleNegativeDiff(changedProperty, diff);
   }
 
   updateCodeblock();
-  updateWorkingGroup();
 };
 
 const ScrollHorizontal = (event: WheelEvent) => {
@@ -397,7 +390,7 @@ watch(
               />
             </div>
             <label
-              class="label relative"
+              class="label relative w-1"
               :style="`left: ${sliderLeft}px; padding: 0px`"
               >{{ scrollSpeed }}</label
             >
@@ -419,9 +412,9 @@ watch(
           <label class="input-group input-group-horizontal input-group-xs">
             <span>Total workers for {{ activeButton }}</span>
             <input
-              type="text"
+              type="number"
               :disabled="nextMode == modes.save ? true : false"
-              v-model.number="workingGroup.total"
+              v-model.number.lazy="workingGroup.total"
               class="input input-bordered"
             />
           </label>
@@ -435,7 +428,7 @@ watch(
             >
               <span>{{ popType }}</span>
               <input
-                type="text"
+                type="number"
                 ref="popTypeInputId"
                 :disabled="nextMode == modes.save ? true : false"
                 class="input input-bordered w-20 transition ease-in-out duration-300 focus:input-secondary"
@@ -451,3 +444,17 @@ watch(
     </div>
   </div>
 </template>
+
+<style>
+input::--webkit-outer-spin-button,
+input::--webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: none;
+  -moz-appearance: textfield;
+}
+</style>
