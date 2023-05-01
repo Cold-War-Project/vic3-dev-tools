@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 /* @ts-ignore */ //TS doesn't like the import statement below, but it works as intended
-import data from "./src/01_industry.txt?raw";
+import data from "/data/in/01_industry.txt?raw";
 /**
  * Splits the imported data at newline characters and stores it in the importedData constant.
  */
@@ -351,6 +351,15 @@ const sliderLeft = computed(() => {
     thumbHalfWidth / 2
   );
 });
+
+//Takes the codeblocks data, puts it all together into a single string saves it as a text file in ~/public/data/out/
+const saveDataToOriginalFile = () => {
+  let data = "";
+  for (let i in codeblocks.value) {
+    data += codeblocks.value[i].join("\n") + "\n";
+  }
+};
+
 /**
  * Executes the parseData function before the component is mounted.
  */
@@ -365,6 +374,14 @@ watch(
   () => activeButton.value,
   () => {
     updateWorkingGroup();
+  },
+  { deep: true }
+);
+
+watch(
+  () => currentMode.value,
+  () => {
+    if (currentMode.value === modes.edit) saveDataToOriginalFile();
   },
   { deep: true }
 );
