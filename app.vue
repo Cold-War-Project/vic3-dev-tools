@@ -1,7 +1,11 @@
 <script lang="ts" setup>
+/* @ts-ignore */ //TS doesn't like the import statement below, but it works as intended
+import data from "./src/01_industry.txt?raw";
 /**
  * Splits the imported data at newline characters and stores it in the importedData constant.
  */
+
+const importedData = data.split("\n");
 
 /**
  * Stores button codeblocks in a dictionary where the key is the button name and the value is an array of strings containing code.
@@ -38,64 +42,122 @@ const popTypeId = ref([]);
 /**
  * A reference to the array of population types.
  */
-enum PopType {
-  Academics = "academics",
-  Administrators = "administrators",
-  Artisans = "artisans",
-  Clergy = "clergy",
-  Engineers = "engineers",
-  Executives = "executives",
-  InformalWorkers = "informal_workers",
-  Investors = "investors",
-  Laborers = "laborers",
-  Managers = "managers",
-  Officers = "officers",
-  Professionals = "professionals",
-  ServiceWorkers = "service_workers",
-  Servicemembers = "servicemembers",
-  Technicians = "technicians",
-}
+const popTypes = ref([
+  "academics",
+  "administrators",
+  "artisans",
+  "clergy",
+  "engineers",
+  "executives",
+  "informal_workers",
+  "investors",
+  "laborers",
+  "managers",
+  "officers",
+  "professionals",
+  "service_workers",
+  "servicemembers",
+  "technicians",
+]);
 
-const popTypes = ref(Object.values(PopType));
-
-type WorkingGroup = {
-  [key in PopType]: number;
-} & {
+/**
+ * Describes the structure of a working group.
+ */
+interface WorkingGroup {
+  academics: number;
+  administrators: number;
+  artisans: number;
+  clergy: number;
+  engineers: number;
+  executives: number;
+  informal_workers: number;
+  investors: number;
+  laborers: number;
+  managers: number;
+  officers: number;
+  professionals: number;
+  service_workers: number;
+  servicemembers: number;
+  technicians: number;
+  total: number;
   [key: string]: number;
-};
+}
 
 /**
  * Stores the previous working group values.
  */
-let previousWorkingGroup: WorkingGroup = Object.fromEntries(
-  Object.values(PopType).map((key) => [key, 0])
-) as WorkingGroup;
+let previousWorkingGroup: WorkingGroup = {
+  academics: 0,
+  administrators: 0,
+  artisans: 0,
+  clergy: 0,
+  engineers: 0,
+  executives: 0,
+  informal_workers: 0,
+  investors: 0,
+  laborers: 0,
+  managers: 0,
+  officers: 0,
+  professionals: 0,
+  service_workers: 0,
+  servicemembers: 0,
+  technicians: 0,
+  total: 0,
+};
 
 /**
  * A reference to the current working group values.
  */
-const workingGroup = ref<WorkingGroup>(
-  Object.fromEntries(
-    Object.values(PopType).map((key) => [key, 0])
-  ) as WorkingGroup
-);
+const workingGroup = ref<WorkingGroup>({
+  academics: 0,
+  administrators: 0,
+  artisans: 0,
+  clergy: 0,
+  engineers: 0,
+  executives: 0,
+  informal_workers: 0,
+  investors: 0,
+  laborers: 0,
+  managers: 0,
+  officers: 0,
+  professionals: 0,
+  service_workers: 0,
+  servicemembers: 0,
+  technicians: 0,
+  total: 0,
+});
+
 /**
  * Parses the imported data and populates the codeblocks dictionary.
  */
-const parseData = (rawData: string) => {
-  // Regex pattern to match the button names and their corresponding code blocks
-  const regexPattern = /(\S+)\s*\{([\s\S]*?)\}/g;
+const parseData = () => {
+  // Reset the codeblocks variable
+  let numberOpenBrackets = 0;
+  let numberClosedBrackets = 0;
+  let codeblockStartLine = 0;
+  let codeblockEndLine = 0;
 
-  // Iterate through all matches in the rawData
-  let match;
-  while ((match = regexPattern.exec(rawData)) !== null) {
-    const buttonName = match[1].trim();
-    const codeBlock = match[2]
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line !== "");
-
-    codeblocks.value[buttonName] = codeBlock;
+  for (let i = 0; i < importedData.length; i++) {
+    if (importedData[i].includes("{")) {
+      numberOpenBrackets++;
+      if (numberOpenBrackets === 1) {
+        codeblockStartLine = i;
+      }
+    }
+    if (importedData[i].includes("}")) {
+      numberClosedBrackets++;
+      if (numberClosedBrackets === numberOpenBrackets) {
+        codeblockEndLine = i;
+        const buttonName = importedData[codeblockStartLine].trim();
+        const codeblock = importedData.slice(
+          codeblockStartLine + 1,
+          codeblockEndLine
+        );
+        codeblocks.value[buttonName] = codeblock;
+        numberOpenBrackets = 0;
+        numberClosedBrackets = 0;
+      }
+    }
   }
 };
 
@@ -106,18 +168,16 @@ const parseData = (rawData: string) => {
  * @param button - The button name.
  * @returns The number of workers for the job.
  */
-const getNumWorkersForJob = (popType: PopType, button: string): number => {
+const getNumWorkersForJob = (popType: string, button: string): number => {
   let numWorkers = 0;
-  const numWorkersForJobCodeblock = codeblocks.value[button];
-
+  let numWorkersForJobCodeblock = codeblocks.value[button];
   if (numWorkersForJobCodeblock) {
-    for (const line of numWorkersForJobCodeblock) {
-      if (line.includes(popType)) {
-        numWorkers += parseInt(line.split("=")[1]);
+    for (let i = 0; i < numWorkersForJobCodeblock.length; i++) {
+      if (numWorkersForJobCodeblock[i].includes(popType)) {
+        numWorkers += parseInt(numWorkersForJobCodeblock[i].split("=")[1]);
       }
     }
   }
-
   return numWorkers;
 };
 
@@ -161,10 +221,11 @@ const roundToNearest100 = (num: number) => {
  * @returns The total number of workers.
  */
 const getTotal = (): number => {
-  return popTypes.value.reduce(
-    (total, popType) => total + workingGroup.value[popType],
-    0
-  );
+  let total = 0;
+  for (let it = 0; it < popTypes.value.length; it++) {
+    total += workingGroup.value[popTypes.value[it]];
+  }
+  return total;
 };
 
 /**
@@ -224,40 +285,31 @@ const adjustLargestOrSmallestBucket = (
 };
 
 /**
- * Handles the case where the new working group value is greater than the old working group value.
- * @param nonZeroBuckets Array of non-zero buckets from the working group.
- * @param diff Remaining difference between the new and old working group values.
+ * Handles a positive difference between the new and old working group values.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The positive difference.
  */
-const handlePositiveDiff = (nonZeroBuckets: PopType[], diff: number) => {
+const handlePositiveDiff = (nonZeroBuckets: string[], diff: number) => {
   redistributeDiff(nonZeroBuckets, diff, false);
-
-  const total = getTotal();
-
-  if (total > workingGroup.value.total) {
-    adjustLargestOrSmallestBucket(
-      nonZeroBuckets,
-      total - workingGroup.value.total,
-      false
-    );
+  if (getTotal() > workingGroup.value.total) {
+    diff = getTotal() - workingGroup.value.total;
+    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, false);
   }
 };
 
 /**
- * Handles the case where the new working group value is less than the old working group value.
- * @param nonZeroBuckets Array of non-zero buckets from the working group.
- * @param diff Remaining difference between the new and old working group values.
+ * Handles a negative difference between the new and old working group values.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The negative difference.
  */
-const handleNegativeDiff = (nonZeroBuckets: PopType[], diff: number) => {
+
+const handleNegativeDiff = (nonZeroBuckets: string[], diff: number) => {
   redistributeDiff(nonZeroBuckets, -diff, true);
-
-  const total = getTotal();
-
-  if (total < workingGroup.value.total) {
-    adjustLargestOrSmallestBucket(
-      nonZeroBuckets,
-      workingGroup.value.total - total,
-      true
-    );
+  if (getTotal() < workingGroup.value.total) {
+    diff = getTotal() - workingGroup.value.total;
+    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, true);
   }
 };
 
@@ -265,17 +317,15 @@ const handleNegativeDiff = (nonZeroBuckets: PopType[], diff: number) => {
  * Updates the original codeblock with the new values.
  */
 const updateCodeblock = () => {
-  for (let popType of popTypes.value) {
+  for (let i = 0; i < popTypes.value.length; i++) {
+    let popType = popTypes.value[i];
     let numWorkers = workingGroup.value[popType];
     let numWorkersForJobCodeblock = codeblocks.value[activeButton.value];
-
     if (numWorkersForJobCodeblock) {
-      let index = numWorkersForJobCodeblock.findIndex((line) =>
-        line.includes(popType)
-      );
-
-      if (index !== -1) {
-        numWorkersForJobCodeblock[index] = `${popType}=${numWorkers}`;
+      for (let j = 0; j < numWorkersForJobCodeblock.length; j++) {
+        if (numWorkersForJobCodeblock[j].includes(popType)) {
+          numWorkersForJobCodeblock[j] = `${popType}=${numWorkers}`;
+        }
       }
     }
   }
@@ -303,18 +353,11 @@ const updateData = (changedProperty: string) => {
   updateWorkingGroup();
 };
 
-async function fetchData() {
-  const response = await fetch("./src/01_industry.txt");
-  const data = await response.text();
-  return data;
-}
-
 /**
  * Executes the parseData function before the component is mounted.
  */
-onBeforeMount(async () => {
-  const rawData = await fetchData();
-  parseData(rawData);
+onBeforeMount(() => {
+  parseData();
 });
 
 /**
