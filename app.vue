@@ -74,25 +74,11 @@ let previousWorkingGroup: WorkingGroup = Object.fromEntries(
 /**
  * A reference to the current working group values.
  */
-const workingGroup = ref<WorkingGroup>({
-  academics: 0,
-  administrators: 0,
-  artisans: 0,
-  clergy: 0,
-  engineers: 0,
-  executives: 0,
-  informal_workers: 0,
-  investors: 0,
-  laborers: 0,
-  managers: 0,
-  officers: 0,
-  professionals: 0,
-  service_workers: 0,
-  servicemembers: 0,
-  technicians: 0,
-  total: 0,
-});
-
+const workingGroup = ref<WorkingGroup>(
+  Object.fromEntries(
+    Object.values(PopType).map((key) => [key, 0])
+  ) as WorkingGroup
+);
 /**
  * Parses the imported data and populates the codeblocks dictionary.
  */
