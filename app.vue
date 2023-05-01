@@ -1,20 +1,47 @@
 <script lang="ts" setup>
 /* @ts-ignore */ //TS doesn't like the import statement below, but it works as intended
 import data from "./src/01_industry.txt?raw";
+/**
+ * Splits the imported data at newline characters and stores it in the importedData constant.
+ */
+
 const importedData = data.split("\n");
 
+/**
+ * Stores button codeblocks in a dictionary where the key is the button name and the value is an array of strings containing code.
+ */
 const codeblocks = ref<{ [key: string]: string[] }>({
   // "buttonName": ["popType = numWorkers", ...]
 });
 
+/**
+ * A reference to the buttons composable.
+ */
 const buttons = useButtons();
+
+/**
+ * A reference to the currently active button.
+ */
 const activeButton = buttons.activeButton;
 
+/**
+ * A reference to the mode composable.
+ */
 const mode = useMode();
+
+/**
+ * The next mode to be used.
+ */
 const nextMode = mode.currentMode;
 
+/**
+ * A reference to the array of HTML input elements for each corresponding pop type.
+ */
 const popTypeId = ref([]);
 
+/**
+ * A reference to the array of population types.
+ */
 const popTypes = ref([
   "academics",
   "administrators",
@@ -33,6 +60,9 @@ const popTypes = ref([
   "technicians",
 ]);
 
+/**
+ * Describes the structure of a working group.
+ */
 interface WorkingGroup {
   academics: number;
   administrators: number;
@@ -53,6 +83,9 @@ interface WorkingGroup {
   [key: string]: number;
 }
 
+/**
+ * Stores the previous working group values.
+ */
 let previousWorkingGroup: WorkingGroup = {
   academics: 0,
   administrators: 0,
@@ -72,6 +105,9 @@ let previousWorkingGroup: WorkingGroup = {
   total: 0,
 };
 
+/**
+ * A reference to the current working group values.
+ */
 const workingGroup = ref<WorkingGroup>({
   academics: 0,
   administrators: 0,
@@ -91,6 +127,9 @@ const workingGroup = ref<WorkingGroup>({
   total: 0,
 });
 
+/**
+ * Parses the imported data and populates the codeblocks dictionary.
+ */
 const parseData = () => {
   // Reset the codeblocks variable
   let numberOpenBrackets = 0;
@@ -122,6 +161,13 @@ const parseData = () => {
   }
 };
 
+/**
+ * Returns the number of workers for a given job and button.
+ *
+ * @param popType - The population type.
+ * @param button - The button name.
+ * @returns The number of workers for the job.
+ */
 const getNumWorkersForJob = (popType: string, button: string): number => {
   let numWorkers = 0;
   let numWorkersForJobCodeblock = codeblocks.value[button];
@@ -135,6 +181,9 @@ const getNumWorkersForJob = (popType: string, button: string): number => {
   return numWorkers;
 };
 
+/**
+ * Updates the working group values based on the active button.
+ */
 const updateWorkingGroup = () => {
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
@@ -147,47 +196,30 @@ const updateWorkingGroup = () => {
   workingGroup.value.total = total;
 };
 
+/**
+ * Updates the previous working group values.
+ */
 const updatePreviousWorkingGroup = () => {
   for (let prop in workingGroup.value) {
     previousWorkingGroup[prop] = workingGroup.value[prop];
   }
 };
 
-// EXAMPLE I/O
-//  buckets
-//  3 3 2 2
-//  subtract 2 from the last bucket 2->0
-//  3 3 2 -> total should be 10
-//  diff = 2
-//  3 -> 3 + (3/10)*2 = 345 -> 300
-//  3 -> 2
-//  2 -> 2 - (2/10)*2 = 2.4 -> 2
-
-//  remainder  -> 200
-
-//  4 4 2
-
-//  example  2
-//  3 3 3 2 2 2 = 15
-//  2 -> 0
-//  3 3 3 2 2 0
-
-//  -----
-
-//  3 3 3 2 23
-//  20 -> 0
-//  4 4 4 3
-//  5 5 5 4
-//  6 6 6 5
-//  7 7 7 6
-//  8 8 8 7
-
-//  diff / total buckets -> 5 remainder 3
-
+/**
+ * Rounds a number to the nearest 100.
+ *
+ * @param num - The number to round.
+ * @returns The rounded number.
+ */
 const roundToNearest100 = (num: number) => {
   return Math.round(num / 100) * 100;
 };
 
+/**
+ * Calculates and returns the total number of workers in the working group.
+ *
+ * @returns The total number of workers.
+ */
 const getTotal = (): number => {
   let total = 0;
   for (let it = 0; it < popTypes.value.length; it++) {
@@ -196,131 +228,141 @@ const getTotal = (): number => {
   return total;
 };
 
-const updateData = (changedProperty: string) => {
-  let nonZeroBuckets = popTypes.value.filter(
-    (popType) => workingGroup.value[popType] > 0 && popType !== changedProperty
-  );
-  console.log(`changedProperty: ${changedProperty}`);
-  console.log(`nonZeroBuckets:`);
-  console.log(nonZeroBuckets);
-  console.log(`previousWorkingGroup:`);
-  console.log(previousWorkingGroup);
-  // Add up all the inputs to get a temporary new total
-  // If the new total is greater than the previous total, we need to distribute the difference proportionally to all the buckets
+/**
+ * Redistributes the difference between the new and old working group values among the non-zero buckets.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The difference between the new and old working group values.
+ * @param increase - Whether to increase or decrease the values.
+ */
+const redistributeDiff = (
+  nonZeroBuckets: string[],
+  diff: number,
+  increase: boolean
+) => {
+  for (let i in nonZeroBuckets) {
+    let proportion =
+      workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
+    let adjustment = roundToNearest100(proportion * diff);
+    workingGroup.value[nonZeroBuckets[i]] += increase
+      ? adjustment
+      : -adjustment;
+  }
+};
+
+/**
+ * Adjusts the largest or smallest bucket to account for the remaining difference.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The remaining difference.
+ * @param findLargest - Whether to find the largest or smallest bucket.
+ */
+const adjustLargestOrSmallestBucket = (
+  nonZeroBuckets: string[],
+  diff: number,
+  findLargest: boolean
+) => {
+  let targetBucket: string = "";
+
+  for (let i in nonZeroBuckets) {
+    if (i === "total") {
+      continue;
+    }
+    if (targetBucket === "") {
+      targetBucket = nonZeroBuckets[i];
+    } else {
+      let currentCondition =
+        workingGroup.value[nonZeroBuckets[i]] >
+        workingGroup.value[targetBucket];
+      let targetCondition = findLargest ? currentCondition : !currentCondition;
+
+      if (targetCondition) {
+        targetBucket = nonZeroBuckets[i];
+      }
+    }
+  }
+  workingGroup.value[targetBucket] -= diff;
+};
+
+/**
+ * Handles a positive difference between the new and old working group values.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The positive difference.
+ */
+const handlePositiveDiff = (nonZeroBuckets: string[], diff: number) => {
+  redistributeDiff(nonZeroBuckets, diff, false);
   if (getTotal() > workingGroup.value.total) {
-    console.log(`total was greater than previous total:`);
-    console.log(getTotal());
-    let diff = getTotal() - workingGroup.value.total;
-    console.log(`diff: ${diff}`);
-
-    for (let i in nonZeroBuckets) {
-      let proportion =
-        workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
-      console.log(`getting proportion for ${nonZeroBuckets[i]}`);
-      console.log(`proportion: ${proportion}`);
-      console.log(`diff * proportion: ${diff * proportion}`);
-      console.log(`roundToNearest100(diff * proportion):`);
-      console.log(roundToNearest100(diff * proportion));
-      workingGroup.value[nonZeroBuckets[i]] -= roundToNearest100(
-        proportion * diff
-      );
-    }
-    console.log(`workingGroup:`);
-    console.log(workingGroup.value);
-    // Recompute the new total and recheck if it's greater than the previous total
-    // If it's still greater than the previous total, we should remove the difference from the smallest bucket
-    if (getTotal() > workingGroup.value.total) {
-      console.log(`total was still greater than previous total:`);
-      console.log(getTotal());
-      // Recompute the diff based on recomputed newTotal
-      diff = getTotal() - workingGroup.value.total;
-      console.log(`diff: ${diff}`);
-      let smallest: string = "";
-      for (let i in nonZeroBuckets) {
-        if (i === "total") {
-          continue;
-        }
-        if (smallest == "") {
-          smallest = nonZeroBuckets[i];
-        } else if (
-          workingGroup.value[nonZeroBuckets[i]] < workingGroup.value[smallest]
-        ) {
-          smallest = nonZeroBuckets[i];
-        }
-      }
-      console.log(`smallest: ${smallest}`);
-      workingGroup.value[smallest] -= diff;
-      console.log(`workingGroup:`);
-      console.log(workingGroup.value);
-    }
+    diff = getTotal() - workingGroup.value.total;
+    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, false);
   }
+};
 
-  // If the new total is less than the previous total, we need to distribute the difference proportionally to all the buckets
-  // Do the inverse of the above
+/**
+ * Handles a negative difference between the new and old working group values.
+ *
+ * @param nonZeroBuckets - The list of non-zero buckets.
+ * @param diff - The negative difference.
+ */
+
+const handleNegativeDiff = (nonZeroBuckets: string[], diff: number) => {
+  redistributeDiff(nonZeroBuckets, -diff, true);
   if (getTotal() < workingGroup.value.total) {
-    console.log(`total was greater than previous total:`);
-    console.log(getTotal());
-    let diff = getTotal() - workingGroup.value.total;
-    console.log(`diff: ${diff}`);
-    for (let i in nonZeroBuckets) {
-      let proportion =
-        workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
-      console.log(`getting proportion for ${nonZeroBuckets[i]}`);
-      console.log(`proportion: ${proportion}`);
-      console.log(`diff * proportion: ${diff * proportion}`);
-      console.log(`roundToNearest100(diff * proportion):`);
-      console.log(roundToNearest100(diff * proportion));
-      workingGroup.value[nonZeroBuckets[i]] -= roundToNearest100(
-        proportion * diff
-      );
-    }
-    console.log(`workingGroup:`);
-    console.log(workingGroup.value);
-
-    if (getTotal() < workingGroup.value.total) {
-      diff = getTotal() - workingGroup.value.total;
-      console.log(`diff: ${diff}`);
-      let largest: string = "";
-      for (let i in nonZeroBuckets) {
-        if (i === "total") {
-          continue;
-        }
-        if (largest == "") {
-          largest = nonZeroBuckets[i];
-        } else if (
-          workingGroup.value[nonZeroBuckets[i]] > workingGroup.value[largest]
-        ) {
-          largest = nonZeroBuckets[i];
-        }
-      }
-      console.log(`largest: ${largest}`);
-      workingGroup.value[largest] -= diff;
-      console.log(`workingGroup:`);
-      console.log(workingGroup.value);
-    }
+    diff = getTotal() - workingGroup.value.total;
+    adjustLargestOrSmallestBucket(nonZeroBuckets, diff, true);
   }
+};
 
-  // update the original codeblock with the new values
+/**
+ * Updates the original codeblock with the new values.
+ */
+const updateCodeblock = () => {
   for (let i = 0; i < popTypes.value.length; i++) {
     let popType = popTypes.value[i];
     let numWorkers = workingGroup.value[popType];
     let numWorkersForJobCodeblock = codeblocks.value[activeButton.value];
     if (numWorkersForJobCodeblock) {
-      for (let i = 0; i < numWorkersForJobCodeblock.length; i++) {
-        if (numWorkersForJobCodeblock[i].includes(popType)) {
-          numWorkersForJobCodeblock[i] = `${popType}=${numWorkers}`;
+      for (let j = 0; j < numWorkersForJobCodeblock.length; j++) {
+        if (numWorkersForJobCodeblock[j].includes(popType)) {
+          numWorkersForJobCodeblock[j] = `${popType}=${numWorkers}`;
         }
       }
     }
   }
-  // Update the display for the user by pulling the values from the codeblock
+};
+
+/**
+ * Updates the data based on the changed property.
+ *
+ * @param changedProperty - The changed property.
+ */
+const updateData = (changedProperty: string) => {
+  let nonZeroBuckets = popTypes.value.filter(
+    (popType) => workingGroup.value[popType] > 0 && popType !== changedProperty
+  );
+
+  let diff = getTotal() - workingGroup.value.total;
+
+  if (diff > 0) {
+    handlePositiveDiff(nonZeroBuckets, diff);
+  } else if (diff < 0) {
+    handleNegativeDiff(nonZeroBuckets, diff);
+  }
+
+  updateCodeblock();
   updateWorkingGroup();
 };
 
+/**
+ * Executes the parseData function before the component is mounted.
+ */
 onBeforeMount(() => {
   parseData();
 });
 
+/**
+ * Watches for changes in the activeButton value, then updates the working group.
+ */
 watch(
   () => activeButton.value,
   () => {
