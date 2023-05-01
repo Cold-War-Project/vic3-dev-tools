@@ -153,74 +153,167 @@ const updatePreviousWorkingGroup = () => {
   }
 };
 
-const updateData = async (changedProperty: string) => {
-  if (changedProperty == "" || changedProperty == null) {
-    return;
-  }
-  // for the changedProperty, grab the old value from the previousWorkingGroup and the new value from the workingGroup object
-  //hack this is to avoid infinite percent change if 0 was in the denominator (see percentChange below)
-  const oldValMain =
-    previousWorkingGroup[changedProperty] === 0
-      ? 1
-      : previousWorkingGroup[changedProperty];
-  const newValMain = workingGroup.value[changedProperty];
+// EXAMPLE I/O
+//  buckets
+//  3 3 2 2
+//  subtract 2 from the last bucket 2->0
+//  3 3 2 -> total should be 10
+//  diff = 2
+//  3 -> 3 + (3/10)*2 = 345 -> 300
+//  3 -> 2
+//  2 -> 2 - (2/10)*2 = 2.4 -> 2
 
-  //get the property names of all the non-zero properties in the workingGroup object also excluding the total property and the changed property
-  const nonZeroProperties = Object.keys(workingGroup.value).filter(
-    (key) =>
-      workingGroup.value[key] !== 0 &&
-      key !== "total" &&
-      key !== changedProperty
-  );
+//  remainder  -> 200
 
-  if (nonZeroProperties.length === 0) {
-    return;
-  }
+//  4 4 2
 
-  //get the percentChange from the old to new value
-  const percentChange = (newValMain - oldValMain) / oldValMain;
+//  example  2
+//  3 3 3 2 2 2 = 15
+//  2 -> 0
+//  3 3 3 2 2 0
 
-  //divide the percentChange by the number of non-zero properties
-  //const percentChangePerProperty = percentChange / nonZeroProperties.length;
+//  -----
 
-  //for each non-zero property, multiply the percentChangePerProperty by the old value and add that to the old value to get the new value
-  for (let i = 0; i < nonZeroProperties.length; i++) {
-    let prop = nonZeroProperties[i];
-    let oldVal = previousWorkingGroup[prop];
-    let newVal = Math.floor(oldVal + oldVal * percentChange);
-    if (newVal <= 0) {
-      // valueIsInvalid(prop);
-      console.error(
-        `new value is ${newVal}, which is less than 0 for ${prop} property`
-      );
-      return;
-    }
-    if (prop === "total") continue;
-    if (prop === changedProperty) continue;
-    workingGroup.value[prop] = newVal;
-  }
+//  3 3 3 2 23
+//  20 -> 0
+//  4 4 4 3
+//  5 5 5 4
+//  6 6 6 5
+//  7 7 7 6
+//  8 8 8 7
 
-  //Double check that the total is still equal workingGroup.total, if it isn't throw an error
+//  diff / total buckets -> 5 remainder 3
+
+const roundToNearest100 = (num: number) => {
+  return Math.round(num / 100) * 100;
+};
+
+const getTotal = (): number => {
   let total = 0;
-  for (let i = 0; i < popTypes.value.length; i++) {
-    if (popTypes.value[i] === "total") continue;
-    total += workingGroup.value[popTypes.value[i]];
+  for (let it = 0; it < popTypes.value.length; it++) {
+    total += workingGroup.value[popTypes.value[it]];
   }
-  if (total !== workingGroup.value.total) {
-    workingGroup.value[changedProperty] += workingGroup.value.total - total;
-  }
+  return total;
+};
 
-  //save the modified workingGroup data to the codeblocks array
-  const codeblock = codeblocks.value[activeButton.value];
-  for (let i = 0; i < codeblock.length; i++) {
-    if (codeblock[i].includes(changedProperty)) {
-      codeblock[
-        i
-      ] = `${changedProperty}=${workingGroup.value[changedProperty]}`;
+const updateData = (changedProperty: string) => {
+  let nonZeroBuckets = popTypes.value.filter(
+    (popType) => workingGroup.value[popType] > 0 && popType !== changedProperty
+  );
+  console.log(`changedProperty: ${changedProperty}`);
+  console.log(`nonZeroBuckets:`);
+  console.log(nonZeroBuckets);
+  console.log(`previousWorkingGroup:`);
+  console.log(previousWorkingGroup);
+  // Add up all the inputs to get a temporary new total
+  // If the new total is greater than the previous total, we need to distribute the difference proportionally to all the buckets
+  if (getTotal() > workingGroup.value.total) {
+    console.log(`total was greater than previous total:`);
+    console.log(getTotal());
+    let diff = getTotal() - workingGroup.value.total;
+    console.log(`diff: ${diff}`);
+
+    for (let i in nonZeroBuckets) {
+      let proportion =
+        workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
+      console.log(`getting proportion for ${nonZeroBuckets[i]}`);
+      console.log(`proportion: ${proportion}`);
+      console.log(`diff * proportion: ${diff * proportion}`);
+      console.log(`roundToNearest100(diff * proportion):`);
+      console.log(roundToNearest100(diff * proportion));
+      workingGroup.value[nonZeroBuckets[i]] -= roundToNearest100(
+        proportion * diff
+      );
+    }
+    console.log(`workingGroup:`);
+    console.log(workingGroup.value);
+    // Recompute the new total and recheck if it's greater than the previous total
+    // If it's still greater than the previous total, we should remove the difference from the smallest bucket
+    if (getTotal() > workingGroup.value.total) {
+      console.log(`total was still greater than previous total:`);
+      console.log(getTotal());
+      // Recompute the diff based on recomputed newTotal
+      diff = getTotal() - workingGroup.value.total;
+      console.log(`diff: ${diff}`);
+      let smallest: string = "";
+      for (let i in nonZeroBuckets) {
+        if (i === "total") {
+          continue;
+        }
+        if (smallest == "") {
+          smallest = nonZeroBuckets[i];
+        } else if (
+          workingGroup.value[nonZeroBuckets[i]] < workingGroup.value[smallest]
+        ) {
+          smallest = nonZeroBuckets[i];
+        }
+      }
+      console.log(`smallest: ${smallest}`);
+      workingGroup.value[smallest] -= diff;
+      console.log(`workingGroup:`);
+      console.log(workingGroup.value);
     }
   }
 
-  codeblocks.value[activeButton.value] = codeblock;
+  // If the new total is less than the previous total, we need to distribute the difference proportionally to all the buckets
+  // Do the inverse of the above
+  if (getTotal() < workingGroup.value.total) {
+    console.log(`total was greater than previous total:`);
+    console.log(getTotal());
+    let diff = getTotal() - workingGroup.value.total;
+    console.log(`diff: ${diff}`);
+    for (let i in nonZeroBuckets) {
+      let proportion =
+        workingGroup.value[nonZeroBuckets[i]] / workingGroup.value.total;
+      console.log(`getting proportion for ${nonZeroBuckets[i]}`);
+      console.log(`proportion: ${proportion}`);
+      console.log(`diff * proportion: ${diff * proportion}`);
+      console.log(`roundToNearest100(diff * proportion):`);
+      console.log(roundToNearest100(diff * proportion));
+      workingGroup.value[nonZeroBuckets[i]] -= roundToNearest100(
+        proportion * diff
+      );
+    }
+    console.log(`workingGroup:`);
+    console.log(workingGroup.value);
+
+    if (getTotal() < workingGroup.value.total) {
+      diff = getTotal() - workingGroup.value.total;
+      console.log(`diff: ${diff}`);
+      let largest: string = "";
+      for (let i in nonZeroBuckets) {
+        if (i === "total") {
+          continue;
+        }
+        if (largest == "") {
+          largest = nonZeroBuckets[i];
+        } else if (
+          workingGroup.value[nonZeroBuckets[i]] > workingGroup.value[largest]
+        ) {
+          largest = nonZeroBuckets[i];
+        }
+      }
+      console.log(`largest: ${largest}`);
+      workingGroup.value[largest] -= diff;
+      console.log(`workingGroup:`);
+      console.log(workingGroup.value);
+    }
+  }
+
+  // update the original codeblock with the new values
+  for (let i = 0; i < popTypes.value.length; i++) {
+    let popType = popTypes.value[i];
+    let numWorkers = workingGroup.value[popType];
+    let numWorkersForJobCodeblock = codeblocks.value[activeButton.value];
+    if (numWorkersForJobCodeblock) {
+      for (let i = 0; i < numWorkersForJobCodeblock.length; i++) {
+        if (numWorkersForJobCodeblock[i].includes(popType)) {
+          numWorkersForJobCodeblock[i] = `${popType}=${numWorkers}`;
+        }
+      }
+    }
+  }
+  // Update the display for the user by pulling the values from the codeblock
   updateWorkingGroup();
 };
 
