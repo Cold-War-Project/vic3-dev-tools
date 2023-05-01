@@ -131,33 +131,14 @@ const workingGroup = ref<WorkingGroup>({
  * Parses the imported data and populates the codeblocks dictionary.
  */
 const parseData = () => {
-  // Reset the codeblocks variable
-  let numberOpenBrackets = 0;
-  let numberClosedBrackets = 0;
-  let codeblockStartLine = 0;
-  let codeblockEndLine = 0;
+  const buttonRegex =
+    /(^.*?)(?=\s*=\s*\{)\s*=\s*\{((?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*)\}/gm;
 
-  for (let i = 0; i < importedData.length; i++) {
-    if (importedData[i].includes("{")) {
-      numberOpenBrackets++;
-      if (numberOpenBrackets === 1) {
-        codeblockStartLine = i;
-      }
-    }
-    if (importedData[i].includes("}")) {
-      numberClosedBrackets++;
-      if (numberClosedBrackets === numberOpenBrackets) {
-        codeblockEndLine = i;
-        const buttonName = importedData[codeblockStartLine].trim();
-        const codeblock = importedData.slice(
-          codeblockStartLine + 1,
-          codeblockEndLine
-        );
-        codeblocks.value[buttonName] = codeblock;
-        numberOpenBrackets = 0;
-        numberClosedBrackets = 0;
-      }
-    }
+  let match;
+  while ((match = buttonRegex.exec(importedData.join("\n"))) !== null) {
+    const buttonName = match[1].trim();
+    const codeblock = match[2].split("\n").map((line) => line.trim());
+    codeblocks.value[buttonName] = codeblock;
   }
 };
 
