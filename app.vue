@@ -19,6 +19,8 @@ const codeblocks = ref<{ [key: string]: string[] }>({
  */
 const buttons = useButtons();
 
+const scrollSpeed = ref(8);
+
 /**
  * A reference to the currently active button.
  */
@@ -334,6 +336,25 @@ const updateData = (changedProperty: string) => {
   updateWorkingGroup();
 };
 
+const ScrollHorizontal = (event: WheelEvent) => {
+  if (!event.currentTarget) return;
+  const currentTarget = event.currentTarget as HTMLDivElement;
+  currentTarget.scrollLeft += event.deltaY * scrollSpeed.value;
+};
+
+const minValue = 0;
+const maxValue = 10;
+const totalInputWidth = 224;
+const thumbHalfWidth = 12;
+
+const sliderLeft = computed(() => {
+  return (
+    ((scrollSpeed.value - minValue) / (maxValue - minValue)) *
+      (totalInputWidth - thumbHalfWidth - thumbHalfWidth) +
+    thumbHalfWidth / 2
+  );
+});
+
 /**
  * Executes the parseData function before the component is mounted.
  */
@@ -356,12 +377,34 @@ watch(
 <template>
   <div class="container mx-auto">
     <div class="flex flex-col items-center">
-      <Navbar class="w-full" />
-      <div
-        class="my-5 flex flex-col flex-wrap gap-2 max-h-72 overflow-x-scroll scroll-smooth will-change-scroll w-full"
-      >
-        <div v-for="(codeblock, buttonName) in codeblocks" :key="buttonName">
-          <PMButton :buttonName="buttonName" />
+      <Navbar>
+        <div class="flex flex-col">
+          <label class="label">Scroll Speed</label>
+          <div class="flex flex-col">
+            <input
+              type="range"
+              min="0"
+              max="10"
+              v-model="scrollSpeed"
+              class="range range-secondary w-56"
+              step="1"
+            />
+            <label
+              class="label relative"
+              :style="`left: ${sliderLeft}px; padding: 0px`"
+              >{{ scrollSpeed }}</label
+            >
+          </div>
+        </div>
+      </Navbar>
+      <div class="flex flex-row w-full">
+        <div
+          @wheel.prevent="ScrollHorizontal($event)"
+          class="my-5 flex flex-col flex-wrap gap-2 max-h-72 overflow-x-scroll scroll-smooth will-change-scroll w-full"
+        >
+          <div v-for="(codeblock, buttonName) in codeblocks" :key="buttonName">
+            <PMButton :buttonName="buttonName" />
+          </div>
         </div>
       </div>
       <div class="flex flex-col" v-if="activeButton">

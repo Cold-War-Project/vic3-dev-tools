@@ -9,18 +9,20 @@ const activeButton = buttons.activeButton;
 </script>
 
 <template>
-  <div class="flex flex-row justify-between align-middle my-5">
+  <div class="w-full flex flex-row items-center justify-between my-5">
     <div class="prose">
       <h1 v-if="currentMode == 'Save'" class="p-2">PM Alligator 🐊</h1>
       <h1 v-else class="bg-error text-error-content p-2">
         PM Alligator 😠🐊⚠️
       </h1>
     </div>
-    <div class="flex flex-col">
+    <div class="flex flex-row items-center gap-5">
+      <slot />
       <button
         @click="setMode"
         :disabled="activeButton == '' || activeButton == null ? true : false"
-        :class="currentMode == 'Edit' ? 'btn btn-success' : 'btn btn-error'"
+        class="btn"
+        :class="currentMode == 'Edit' ? 'btn-success' : 'btn-error '"
       >
         {{ currentMode == "Edit" ? "Return to Safety" : "Enter Edit Mode" }}
       </button>
