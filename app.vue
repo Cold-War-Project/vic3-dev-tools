@@ -1,11 +1,36 @@
 <script lang="ts" setup>
-/* @ts-ignore */ //TS doesn't like the import statement below, but it works as intended
-import data from "/data/in/01_industry.txt?raw";
+const getData = async () => {
+  try {
+    const { data, error } = await useFetch<string>(
+      "http://localhost:3001/data/in/01_industry.txt",
+      {
+        method: "GET",
+        mode: "cors",
+        credentials: "same-origin",
+        retry: 3,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      }
+    );
+    if (error.value) {
+      console.error(error.value);
+    } else {
+      return data.value;
+    }
+  } catch (error: any | unknown) {
+    console.error(error);
+  }
+};
+
+const data = await getData().catch((error) => {
+  console.error(error);
+});
+
 /**
  * Splits the imported data at newline characters and stores it in the importedData constant.
  */
-
-const importedData = data.split("\n");
+const importedData = data?.split("\n");
 
 /**
  * Stores button codeblocks in a dictionary where the key is the button name and the value is an array of strings containing code.
@@ -132,17 +157,18 @@ const workingGroup = ref<WorkingGroup>({
 /**
  * Parses the imported data and populates the codeblocks dictionary.
  */
-const parseData = () => {
+function parseData() {
   const buttonRegex =
     /(^.*?)(?=\s*=\s*\{)\s*=\s*\{((?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*)\}/gm;
 
+  if (!importedData) return;
   let match;
   while ((match = buttonRegex.exec(importedData.join("\n"))) !== null) {
     const buttonName = match[1].trim();
     const codeblock = match[2].split("\n").map((line) => line.trim());
     codeblocks.value[buttonName] = codeblock;
   }
-};
+}
 
 /**
  * Returns the number of workers for a given job and button.
@@ -150,8 +176,9 @@ const parseData = () => {
  * @param popType - The population type.
  * @param button - The button name.
  * @returns The number of workers for the job.
+ * @type number - The number of workers for the job.
  */
-const getNumWorkersForJob = (popType: string, button: string): number => {
+function getNumWorkersForJob(popType: string, button: string): number {
   let numWorkers = 0;
   let numWorkersForJobCodeblock = codeblocks.value[button];
   if (numWorkersForJobCodeblock) {
@@ -162,12 +189,12 @@ const getNumWorkersForJob = (popType: string, button: string): number => {
     }
   }
   return numWorkers;
-};
+}
 
 /**
  * Updates the working group values based on the active button.
  */
-const updateWorkingGroup = () => {
+function updateWorkingGroup() {
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
     workingGroup.value[popTypes.value[i]] = getNumWorkersForJob(
@@ -177,16 +204,16 @@ const updateWorkingGroup = () => {
     total += workingGroup.value[popTypes.value[i]];
   }
   workingGroup.value.total = total;
-};
+}
 
 /**
  * Updates the previous working group values.
  */
-const updatePreviousWorkingGroup = () => {
+function updatePreviousWorkingGroup() {
   for (let prop in workingGroup.value) {
     previousWorkingGroup[prop] = workingGroup.value[prop];
   }
-};
+}
 
 /**
  * Rounds a number to the nearest 100.
@@ -194,40 +221,37 @@ const updatePreviousWorkingGroup = () => {
  * @param num - The number to round.
  * @returns The rounded number.
  */
-const roundToNearest100 = (num: number) => {
-  return Math.round(num / 100) * 100;
-};
+const roundToNearest100 = (num: number): number => Math.round(num / 100) * 100;
 
 /**
  * Calculates and returns the total number of workers in the working group.
- *
- * @returns The total number of workers.
+ * @returns  The total number of workers.
  */
-const getTotal = (): number => {
+function getTotal(): number {
   let total = 0;
   for (let i = 0; i < popTypes.value.length; i++) {
     total += workingGroup.value[popTypes.value[i]];
   }
   return total;
-};
+}
 
-const getNonZeroBuckets = (filter: string): string[] => {
+function getNonZeroBuckets(filter: string): string[] {
   return popTypes.value.filter(
     (popType) => workingGroup.value[popType] > 0 && popType !== filter
   );
-};
+}
 
 /**
  * Redistributes the difference between the new and old working group values among the non-zero buckets.
- *
+ * @param changedProperty - A unique key tied to the property that changed, referring to an input field in the UI for a population type.
  * @param diff - The difference between the new and old working group values.
  * @param increase - Whether to increase or decrease the values.
  */
-const redistributeDiff = (
+function redistributeDiff(
   changedProperty: string,
   diff: number,
   increase: boolean
-) => {
+): void {
   let nonZeroBuckets = getNonZeroBuckets(changedProperty);
   for (let i in nonZeroBuckets) {
     let proportion =
@@ -237,18 +261,18 @@ const redistributeDiff = (
       ? adjustment
       : -adjustment;
   }
-};
+}
 
 /**
  * Adjusts the largest or smallest bucket to account for the remaining difference.
  * @param diff - The remaining difference.
  * @param findLargest - Whether to find the largest or smallest bucket.
  */
-const adjustLargestOrSmallestBucket = (
+function adjustLargestOrSmallestBucket(
   changedProperty: string,
   diff: number,
   findLargest: boolean
-) => {
+) {
   let nonZeroBuckets = getNonZeroBuckets(changedProperty);
   let targetBucket: string = "";
 
@@ -270,38 +294,38 @@ const adjustLargestOrSmallestBucket = (
     }
   }
   workingGroup.value[targetBucket] -= diff;
-};
+}
 
 /**
  * Handles a positive difference between the new and old working group values.
- *
+ * @param changedProperty - A unique key tied to the property that changed, referring to an input field in the UI for a population type.
  * @param diff - The positive difference.
  */
-const handlePositiveDiff = (changedProperty: string, diff: number) => {
+function handlePositiveDiff(changedProperty: string, diff: number) {
   redistributeDiff(changedProperty, diff, false);
   if (getTotal() > workingGroup.value.total) {
     diff = getTotal() - workingGroup.value.total;
     adjustLargestOrSmallestBucket(changedProperty, diff, false);
   }
-};
+}
 
 /**
  * Handles a negative difference between the new and old working group values.
- *
+ * @param changedProperty - A unique key tied to the property that changed, referring to an input field in the UI for a population type.
  * @param diff - The negative difference.
  */
-const handleNegativeDiff = (changedProperty: string, diff: number) => {
+function handleNegativeDiff(changedProperty: string, diff: number) {
   redistributeDiff(changedProperty, diff, true);
   if (getTotal() < workingGroup.value.total) {
     diff = getTotal() - workingGroup.value.total;
     adjustLargestOrSmallestBucket(changedProperty, diff, true);
   }
-};
+}
 
 /**
  * Updates the original codeblock with the new values.
  */
-const updateCodeblock = () => {
+function updateCodeblock() {
   for (let i = 0; i < popTypes.value.length; i++) {
     let popType = popTypes.value[i];
     let numWorkers = workingGroup.value[popType];
@@ -314,14 +338,13 @@ const updateCodeblock = () => {
       }
     }
   }
-};
+}
 
 /**
  * Updates the data based on the changed property.
- *
  * @param changedProperty - The changed property.
  */
-const updateData = async (changedProperty: string) => {
+async function updateData(changedProperty: string) {
   let diff = getTotal() - workingGroup.value.total;
 
   if (diff > 0) {
@@ -331,13 +354,13 @@ const updateData = async (changedProperty: string) => {
   }
 
   updateCodeblock();
-};
+}
 
-const ScrollHorizontal = (event: WheelEvent) => {
+function ScrollHorizontal(event: WheelEvent) {
   if (!event.currentTarget) return;
   const currentTarget = event.currentTarget as HTMLDivElement;
   currentTarget.scrollLeft += event.deltaY * scrollSpeed.value;
-};
+}
 
 const minValue = 0;
 const maxValue = 10;
@@ -353,12 +376,32 @@ const sliderLeft = computed(() => {
 });
 
 //Takes the codeblocks data, puts it all together into a single string saves it as a text file in ~/public/data/out/
-const saveDataToOriginalFile = () => {
-  let data = "";
+async function saveDataToOriginalFile() {
+  let newData = "";
   for (let i in codeblocks.value) {
-    data += codeblocks.value[i].join("\n") + "\n";
+    newData += codeblocks.value[i].join("\n") + "\n";
   }
-};
+
+  const blob = new Blob([newData], { type: "multipart/form-data" });
+  const file = new File([blob], "01_industry.txt", {
+    type: "multipart/form-data",
+  });
+
+  try {
+    const { error } = await useFetch(
+      "http://localhost:3001/data/out/01_industry.txt",
+      {
+        method: "PUT",
+        body: file,
+      }
+    );
+    if (error.value) {
+      console.error(error.value);
+    }
+  } catch (error: any | unknown) {
+    console.error(error);
+  }
+}
 
 /**
  * Executes the parseData function before the component is mounted.
@@ -381,7 +424,8 @@ watch(
 watch(
   () => currentMode.value,
   () => {
-    if (currentMode.value === modes.edit) saveDataToOriginalFile();
+    if (currentMode.value === modes.save) saveDataToOriginalFile();
+    updateWorkingGroup();
   },
   { deep: true }
 );
