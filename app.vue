@@ -174,21 +174,14 @@ function parseData() {
  * Returns the number of workers for a given job and button.
  *
  * @param popType - The population type.
- * @param button - The button name.
  * @returns The number of workers for the job.
  * @type number - The number of workers for the job.
  */
-function getNumWorkersForJob(popType: string, button: string): number {
-  let numWorkers = 0;
-  let numWorkersForJobCodeblock = codeblocks.value[button];
-  if (numWorkersForJobCodeblock) {
-    for (let i = 0; i < numWorkersForJobCodeblock.length; i++) {
-      if (numWorkersForJobCodeblock[i].includes(popType)) {
-        numWorkers += parseInt(numWorkersForJobCodeblock[i].split("=")[1]);
-      }
-    }
-  }
-  return numWorkers;
+function getNumWorkersForJob(popType: string, codeblock: string[]): number {
+  // Find the line in the codeblock whose key matches the population type
+  const line = codeblock.find((line) => line.includes(popType));
+  // If the line exists, return the number on the right side of the equals sign, otherwise return 0
+  return line ? parseInt(line.split("=")[1].trim()) : 0;
 }
 
 /**
@@ -196,10 +189,11 @@ function getNumWorkersForJob(popType: string, button: string): number {
  */
 function updateWorkingGroup() {
   let total = 0;
+  let codeblock = codeblocks.value[activeButton.value];
   for (let i = 0; i < popTypes.value.length; i++) {
     workingGroup.value[popTypes.value[i]] = getNumWorkersForJob(
       popTypes.value[i],
-      activeButton.value
+      codeblock
     );
     total += workingGroup.value[popTypes.value[i]];
   }
@@ -322,29 +316,64 @@ function handleNegativeDiff(changedProperty: string, diff: number) {
   }
 }
 
+interface LineObject {
+  line: string | undefined;
+  property: string;
+}
+
+/**
+ * Finds lines in the codeblock that include the changed properties.
+ */
+function findLinesToUpdate(
+  changedProperties: string[],
+  codeblock: string[]
+): LineObject[] {
+  return changedProperties.map((changedProperty) => ({
+    line: codeblock.find((line) => line.includes(changedProperty)),
+    property: changedProperty,
+  }));
+}
+
+/**
+ * Updates the lines in the codeblock with the new values from the working group.
+ */
+function updateLines(codeblock: string[], linesToUpdate: LineObject[]): void {
+  linesToUpdate.forEach(({ line, property }) => {
+    if (!line) return;
+
+    const index = codeblock.indexOf(line);
+
+    if (index > -1) {
+      codeblock[index] = line.replace(
+        /(\d+)/,
+        workingGroup.value[property].toString()
+      );
+    }
+  });
+}
+
 /**
  * Updates the original codeblock with the new values.
  */
-function updateCodeblock() {
-  for (let i = 0; i < popTypes.value.length; i++) {
-    let popType = popTypes.value[i];
-    let numWorkers = workingGroup.value[popType];
-    let numWorkersForJobCodeblock = codeblocks.value[activeButton.value];
-    if (numWorkersForJobCodeblock) {
-      for (let j = 0; j < numWorkersForJobCodeblock.length; j++) {
-        if (numWorkersForJobCodeblock[j].includes(popType)) {
-          numWorkersForJobCodeblock[j] = `${popType}=${numWorkers}`;
-        }
-      }
-    }
+function updateCodeblock(changedProperties: string[]): void {
+  const codeblockToUpdate = codeblocks.value[activeButton.value];
+
+  if (codeblockToUpdate) {
+    const linesToUpdate = findLinesToUpdate(
+      changedProperties,
+      codeblockToUpdate
+    );
+    updateLines(codeblockToUpdate, linesToUpdate);
   }
+
+  updateWorkingGroup();
 }
 
 /**
  * Updates the data based on the changed property.
  * @param changedProperty - The changed property.
  */
-async function updateData(changedProperty: string) {
+function updateData(changedProperty: string) {
   let diff = getTotal() - workingGroup.value.total;
 
   if (diff > 0) {
@@ -353,7 +382,11 @@ async function updateData(changedProperty: string) {
     handleNegativeDiff(changedProperty, diff);
   }
 
-  updateCodeblock();
+  const changedProperties = [changedProperty].concat(
+    getNonZeroBuckets(changedProperty)
+  );
+
+  updateCodeblock(changedProperties);
 }
 
 function ScrollHorizontal(event: WheelEvent) {
