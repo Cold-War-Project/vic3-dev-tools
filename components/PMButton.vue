@@ -3,13 +3,8 @@ const props = defineProps<{
   buttonName: string;
 }>();
 
-const buttons = useButtons();
-const activeButton = buttons.activeButton;
-const toggleButton = buttons.toggleButton;
-
-const mode = useMode();
-const currentMode = mode.currentMode;
-
+const { activeButton, toggleButton } = useButtons();
+const { currentMode } = useMode();
 const isActiveButton = ref(false);
 
 const handlePMSelect = () => {
