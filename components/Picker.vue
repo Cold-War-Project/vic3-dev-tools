@@ -56,7 +56,7 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <div class="flex flex-row w-full">
+  <div class="flex flex-row">
     <div
       @wheel.prevent="ScrollHorizontal($event)"
       class="my-5 flex flex-col flex-wrap gap-2 max-h-72 overflow-x-scroll scroll-smooth will-change-scroll w-full"

@@ -9,12 +9,12 @@ const activeButton = buttons.activeButton;
 </script>
 
 <template>
-  <div class="w-full flex flex-row items-center justify-between my-10">
+  <div class="flex flex-row items-center justify-between my-10">
     <div class="prose">
-      <h1 v-if="currentMode == 'Save'" class="p-2">PM Alligator 🐊</h1>
-      <h1 v-else class="bg-error text-error-content p-2">
+      <h3 v-if="currentMode == 'Save'" class="p-2">PM Alligator 🐊</h3>
+      <h3 v-else class="bg-error text-error-content p-2">
         PM Alligator 😠🐊⚠️
-      </h1>
+      </h3>
     </div>
     <div class="flex flex-row items-center gap-5">
       <slot />
@@ -26,6 +26,11 @@ const activeButton = buttons.activeButton;
       >
         {{ currentMode == "Edit" ? "Return to Safety" : "Enter Edit Mode" }}
       </button>
+      <div class="avatar online">
+        <div class="w-12 rounded-full">
+          <img src="/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+        </div>
+      </div>
     </div>
   </div>
 </template>

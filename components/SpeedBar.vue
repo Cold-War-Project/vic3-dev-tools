@@ -3,7 +3,7 @@ const { scrollSpeed } = useScrollSpeed();
 
 const minValue = 0;
 const maxValue = 10;
-const totalInputWidth = 224;
+const totalInputWidth = 194;
 const thumbHalfWidth = 12;
 
 const sliderLeft = computed(() => {
@@ -27,7 +27,7 @@ const sliderLeft = computed(() => {
           min="0"
           max="10"
           v-model="scrollSpeed"
-          class="range range-secondary w-56"
+          class="range range-secondary w-42"
           step="1"
         />
       </div>

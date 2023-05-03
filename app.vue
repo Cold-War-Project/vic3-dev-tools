@@ -1,16 +1,11 @@
 <script lang="ts" setup>
-const { activeButton } = useButtons();
+const user = useSupabaseUser();
 </script>
 
 <template>
-  <div class="container mx-auto">
-    <div class="flex flex-col items-center">
-      <Navbar>
-        <SpeedBar />
-      </Navbar>
-      <Picker />
-      <Editor v-if="activeButton" />
-    </div>
+  <div class="container mx-auto flex flex-col max-w-8/12 items-center">
+    <Main v-if="user" />
+    <Auth v-else />
   </div>
 </template>
 
