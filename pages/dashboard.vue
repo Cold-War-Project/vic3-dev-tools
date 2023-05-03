@@ -5,24 +5,35 @@ const loading = ref(true);
 const username = ref("");
 const avatar_path = ref("");
 const hasEnteredText = ref(false);
+const email = ref("");
+
+definePageMeta({
+  name: "dashboard",
+  middleware: ["auth"],
+});
 
 loading.value = true;
 const user = useSupabaseUser();
-
-let { data } = await supabase
-  .from("profiles")
-  .select(`username, website, avatar_url`)
-  .eq("id", user.value?.id)
-  .single();
-
-if (data) {
-  if (data.username && data.avatar_url) {
-    username.value = data.username;
-    avatar_path.value = data.avatar_url;
-  }
+if (user.value?.email) {
+  email.value = user.value.email;
 }
 
-loading.value = false;
+async function getUserData() {
+  let { data } = await supabase
+    .from("profiles")
+    .select(`username, website, avatar_url`)
+    .eq("id", user.value?.id)
+    .single();
+
+  if (data) {
+    if (data.username && data.avatar_url) {
+      username.value = data.username;
+      avatar_path.value = data.avatar_url;
+    }
+  }
+
+  loading.value = false;
+}
 
 async function updateProfile() {
   loading.value = true;
@@ -74,12 +85,16 @@ function userEnteredText() {
     hasEnteredText.value = true;
   }
 }
+
+onBeforeMount(async () => {
+  await getUserData();
+});
 </script>
 
 <template>
   <form @submit.prevent="updateProfile">
     <InputGroup
-      v-model:data="user?.email"
+      v-model:data="email"
       label="email"
       placeholder="info@email.com"
       type="email"

@@ -1,11 +1,12 @@
-<script lang="ts" setup>
-const user = useSupabaseUser();
-</script>
+<script lang="ts" setup></script>
 
 <template>
-  <div class="container mx-auto flex flex-col max-w-8/12 items-center">
-    <Main v-if="user" />
-    <Auth v-else />
+  <div class="container mx-auto flex flex-col max-w-10/12 items-center">
+    <Navbar>
+      <SpeedBar />
+    </Navbar>
+
+    <NuxtPage />
   </div>
 </template>
 

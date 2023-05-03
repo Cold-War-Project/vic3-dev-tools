@@ -4,11 +4,19 @@ import { AuthError } from "@supabase/supabase-js";
 const supabase = useSupabaseClient<Database>();
 const loading = ref(false);
 const email = ref("");
+definePageMeta({
+  name: "auth",
+});
 
 async function handleLogin() {
   loading.value = true;
   await supabase.auth
-    .signInWithOtp({ email: email.value })
+    .signInWithOtp({
+      email: email.value,
+      options: {
+        emailRedirectTo: "http://localhost:3001/",
+      },
+    })
     .then(({ error }) => {
       if (error) {
         throw error;
@@ -34,16 +42,17 @@ async function handleLogin() {
     @submit.prevent="handleLogin"
     class="form-control gap-10 place-content-center h-screen max-w-sm"
   >
-    <label class="text-2xl bg-accent text-accent-content rounded"
-      >Welcome to tools.vic3.dev <br />
-      Enter your email and we'll send you a magic link!
-    </label>
+    <div class="prose">
+      <h3>Welcome to:</h3>
+      <h1 class="text-center">tools.vic3.dev</h1>
+      <p>Enter your email and we'll send you a magic link!</p>
+    </div>
     <InputGroup
       label="Email"
       placeholder="info@site.com"
       type="email"
       v-model:data="email"
     />
-    <FormButton type="submit" text="submit" extraClassStyle="btn-primary" />
+    <FormButton type="submit" text="submit 🚀" extraClassStyle="btn-primary" />
   </form>
 </template>

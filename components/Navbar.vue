@@ -1,20 +1,18 @@
 p
 <script lang="ts" setup>
-const mode = useMode();
-const currentMode = mode.currentMode;
-const setMode = mode.setMode;
-
-const buttons = useButtons();
-const activeButton = buttons.activeButton;
+const { currentMode, setMode } = useMode();
+const { activeButton } = useButtons();
+const router = useRouter();
 </script>
 
 <template>
-  <div class="flex flex-row items-center justify-between my-10">
+  <div
+    class="flex flex-row items-center justify-between my-10"
+    v-if="router.currentRoute.value.path !== '/auth'"
+  >
     <div class="prose">
       <h3 v-if="currentMode == 'Save'" class="p-2">PM Alligator 🐊</h3>
-      <h3 v-else class="bg-error text-error-content p-2">
-        PM Alligator 😠🐊⚠️
-      </h3>
+      <h3 v-else class="bg-error text-error-content p-2">PM Alligator 😠</h3>
     </div>
     <div class="flex flex-row items-center gap-5">
       <slot />
