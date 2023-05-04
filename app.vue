@@ -1,12 +1,13 @@
 <script lang="ts" setup></script>
 
 <template>
-  <div class="container mx-auto flex flex-col max-w-10/12 items-center">
-    <Navbar>
-      <SpeedBar />
-    </Navbar>
-
-    <NuxtPage />
+  <div class="container mx-auto max-w-3xl">
+    <div class="flex flex-col gap-10 items-center">
+      <Navbar>
+        <SpeedBar />
+      </Navbar>
+      <NuxtPage />
+    </div>
   </div>
 </template>
 

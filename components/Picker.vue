@@ -16,7 +16,7 @@ async function getData(): Promise<Record<string, string[]>> {
       headers: {
         "Content-Type": "text/plain",
       },
-      baseURL: "http://localhost:3001",
+      baseURL: "http://localhost:3000",
       parseResponse: async (
         response
       ): Promise<Record<string, string[]> | null> => {

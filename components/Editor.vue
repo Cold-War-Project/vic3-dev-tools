@@ -328,7 +328,7 @@ async function saveDataToOriginalFile() {
     const { error } = await useFetch("/data/out/01_industry.txt", {
       method: "PUT",
       body: formData,
-      baseURL: "http://localhost:3001",
+      baseURL: "http://localhost:3000",
     });
     if (error.value) {
       console.error(error.value);

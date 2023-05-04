@@ -21,6 +21,11 @@
     "nuxt-vitest": "^0.6.10"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.4.0",
+    "@fortawesome/free-brands-svg-icons": "^6.4.0",
+    "@fortawesome/free-regular-svg-icons": "^6.4.0",
+    "@fortawesome/free-solid-svg-icons": "^6.4.0",
+    "@fortawesome/vue-fontawesome": "^3.0.3",
     "@heroicons/vue": "^2.0.17",
     "@tailwindcss/typography": "^0.5.9",
     "daisyui": "^2.51.6",
