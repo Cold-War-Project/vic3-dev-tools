@@ -2,10 +2,11 @@
 const { codeblocks } = useCodeblocks();
 const { activeButton } = useButtons();
 const { currentMode } = useMode();
-/**
- * A reference to the array of HTML input elements for each corresponding pop type.
- */
-const popTypeInputId = ref([]);
+const { loadedFile } = useFile();
+
+const emit = defineEmits<{
+  (event: "gatherData", data: File): void;
+}>();
 
 /**
  * A reference to the array of population types.
@@ -104,6 +105,7 @@ const workingGroup = ref<WorkingGroup>({
 function getNumWorkersForJob(popType: string, codeblock: string[]): number {
   // Find the line in the codeblock whose key matches the population type
   const line = codeblock.find((line) => line.includes(popType));
+
   // If the line exists, return the number on the right side of the equals sign, otherwise return 0
   return line ? parseInt(line.split("=")[1].trim()) : 0;
 }
@@ -112,6 +114,7 @@ function getNumWorkersForJob(popType: string, codeblock: string[]): number {
  * Updates the working group values based on the active button.
  */
 function updateWorkingGroup() {
+  console.log(`updating working group`);
   let total = 0;
   let codeblock = codeblocks.value[activeButton.value];
   for (let i = 0; i < popTypes.value.length; i++) {
@@ -252,10 +255,18 @@ function findLinesToUpdate(
   changedProperties: string[],
   codeblock: string[]
 ): LineObject[] {
-  return changedProperties.map((changedProperty) => ({
-    line: codeblock.find((line) => line.includes(changedProperty)),
-    property: changedProperty,
-  }));
+  return changedProperties.map((changedProperty) => {
+    const line = codeblock.find((line) => line.includes(changedProperty));
+
+    return {
+      line: line !== undefined ? line : createLine(changedProperty),
+      property: changedProperty,
+    };
+  });
+}
+
+function createLine(changedProperty: string): string {
+  return `building_employment_${changedProperty}_add = ${workingGroup.value[changedProperty]}`;
 }
 
 /**
@@ -280,6 +291,7 @@ function updateLines(codeblock: string[], linesToUpdate: LineObject[]): void {
  * Updates the original codeblock with the new values.
  */
 function updateCodeblock(changedProperties: string[]): void {
+  console.log(`updating codeblock with: ${changedProperties.toString()}`);
   const codeblockToUpdate = codeblocks.value[activeButton.value];
 
   if (codeblockToUpdate) {
@@ -287,10 +299,11 @@ function updateCodeblock(changedProperties: string[]): void {
       changedProperties,
       codeblockToUpdate
     );
+    linesToUpdate.forEach(({ line, property }) =>
+      console.log(`line: ${line}, property: ${property}`)
+    );
     updateLines(codeblockToUpdate, linesToUpdate);
   }
-
-  updateWorkingGroup();
 }
 
 /**
@@ -313,44 +326,33 @@ function updateData(changedProperty: string) {
   updateCodeblock(changedProperties);
 }
 
-//Takes the codeblocks data, puts it all together into a single string saves it as a text file in ~/public/data/out/
-async function saveDataToOriginalFile() {
+//Gathers all the data from the codeblocks and returns it as a file.
+const gatherData = (): File => {
   let newData = "";
   for (let i in codeblocks.value) {
-    newData += codeblocks.value[i].join("\n") + "\n";
+    //The codeblock is a string array, so we need to join it back into a string and give it back its name and opening bracket.
+    let codeblock = i + " = {" + codeblocks.value[i].join("\n") + "}" + "\n";
+    newData += codeblock;
   }
+  return new File([newData], `${loadedFile.value.name}`, {
+    type: "text/plain",
+  });
+};
 
-  const formData = new FormData();
-  const file = new File([newData], "01_industry.txt", { type: "text/plain" });
-  formData.append("file", file);
-
-  try {
-    const { error } = await useFetch("/data/out/01_industry.txt", {
-      method: "PUT",
-      body: formData,
-      baseURL: "http://localhost:3000",
-    });
-    if (error.value) {
-      console.error(error.value);
-    }
-  } catch (error: any | unknown) {
-    console.error(error);
-  }
-}
-
+updateWorkingGroup();
 watch(
   () => activeButton.value,
   () => {
     updateWorkingGroup();
-  },
-  { deep: true }
+  }
 );
-
 watch(
   () => currentMode.value,
-  () => {
-    if (currentMode.value === modes.save) saveDataToOriginalFile();
-    updateWorkingGroup();
+  async () => {
+    if (currentMode.value === modes.save) {
+      emit("gatherData", gatherData());
+      updateWorkingGroup();
+    }
   },
   { deep: true }
 );
@@ -363,8 +365,8 @@ watch(
         <span>Total workers for {{ activeButton }}</span>
         <input
           type="number"
-          :disabled="nextMode == modes.save ? true : false"
-          v-model.number.lazy="workingGroup.total"
+          :disabled="currentMode == modes.save ? true : false"
+          v-model.number="workingGroup.total"
           class="input input-bordered"
         />
       </label>
@@ -379,12 +381,11 @@ watch(
           <span>{{ popType }}</span>
           <input
             type="number"
-            ref="popTypeInputId"
-            :disabled="nextMode == modes.save ? true : false"
+            :disabled="currentMode == modes.save ? true : false"
             class="input input-bordered w-20 transition ease-in-out duration-300 focus:input-secondary"
-            v-model.number.trim.lazy="workingGroup[popType]"
+            v-model.number="workingGroup[popType]"
             @focus="updatePreviousWorkingGroup()"
-            @change.prevent="updateData(popType)"
+            @change="updateData(popType)"
             @keyup.enter.prevent="$event.target.blur()"
           />
         </label>
