@@ -4,47 +4,25 @@ const supabase = useSupabaseClient<Database>();
 const user = useSupabaseUser();
 const { email, username, fetchUserData, updateUserData } = useUserData();
 const { avatarPath } = useAvatar();
-const loading = ref(true);
+const { loading, setLoading } = useLoading();
 const hasEnteredText = ref(false);
 
 definePageMeta({
   name: "dashboard",
 });
 
-loading.value = true;
+setLoading(true);
 
 await fetchUserData(supabase, user.value)
   .catch((error) => {
     console.error(error);
   })
   .finally(() => {
-    loading.value = false;
+    setLoading(false);
   });
 
-// async function updateProfile() {
-//   loading.value = true;
-//   if (!user.value) return;
-//   await updateUserData(
-//     {
-//       id: user.value.id,
-//       username: username.value,
-//       avatar: avatar.value,
-//       updated_at: new Date().toDateString(),
-//     },
-//     supabase
-//   )
-//     .catch((error) => {
-//       console.error(error);
-//     })
-//     .finally(() => {
-//       loading.value = false;
-//     });
-// }
-
-//
-
 async function signOut() {
-  loading.value = true;
+  setLoading(true);
   await supabase.auth
     .signOut()
     .then(({ error }) => {
@@ -58,7 +36,7 @@ async function signOut() {
       console.error(error);
     })
     .finally(() => {
-      loading.value = false;
+      setLoading(false);
     });
 }
 
