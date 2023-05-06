@@ -1,8 +1,8 @@
 const activeButton = ref<string>("");
-const toggleButton = (button: string) => {
+const setActiveButton = (button: string) => {
   activeButton.value = button;
 };
 
 export default function useButtons() {
-  return { toggleButton, activeButton };
+  return { setActiveButton, activeButton };
 }

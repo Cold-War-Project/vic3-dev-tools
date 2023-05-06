@@ -3,13 +3,9 @@ const props = defineProps<{
   buttonName: string;
 }>();
 
-const { activeButton, toggleButton } = useButtons();
+const { activeButton, setActiveButton } = useButtons();
 const { currentMode } = useMode();
 const isActiveButton = ref(false);
-
-const handlePMSelect = () => {
-  toggleButton(props.buttonName);
-};
 
 watch(
   () => activeButton.value,
@@ -22,7 +18,7 @@ watch(
 <template>
   <div>
     <button
-      @click="handlePMSelect"
+      @click="setActiveButton(buttonName)"
       :disabled="currentMode == 'Save' || isActiveButton ? false : true"
       class="btn btn-xs"
       :class="isActiveButton ? 'btn-primary' : ''"
