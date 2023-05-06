@@ -1,13 +1,40 @@
 <script setup lang="ts">
+import { Database } from "~/utils/database.types";
 const { scrollSpeed } = useScrollSpeed();
 const { codeblocks } = useCodeblocks();
+const { loadedFile } = useFile(); //reference to local file object as a URL
+const { loading, setLoading } = useLoading();
+
+const supabase = useSupabaseClient<Database>();
+const user = useSupabaseUser();
 
 const codeblockRegex =
   /(^.*?)(?=\s*=\s*\{)\s*=\s*\{((?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*)\}/gm;
 
+const deleteFile = async (filename: string) => {
+  setLoading(true);
+  if (!user.value) throw new Error("User not logged in, cannot delete file");
+  await supabase.storage
+    .from("files")
+    .remove([`/${user.value.id}/${filename}`])
+    .then(({ error }) => {
+      if (error) {
+        throw error;
+      } else {
+        console.log(`Deleted file: ${filename}`);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+};
+
 async function getData(): Promise<Record<string, string[]>> {
   const { data } = await useFetch<Record<string, string[]>>(
-    "/data/in/01_industry.txt",
+    loadedFile.value.url,
     {
       method: "GET",
       mode: "cors",
@@ -48,15 +75,18 @@ function ScrollHorizontal(event: WheelEvent) {
   currentTarget.scrollLeft += event.deltaY * scrollSpeed.value;
 }
 
-const data = await getData();
-
-onBeforeMount(() => {
-  codeblocks.value = data;
-});
+watch(
+  () => loadedFile.value,
+  async () => {
+    codeblocks.value = await getData();
+  },
+  { deep: true }
+);
 </script>
 
 <template>
   <div class="flex flex-row">
+    <Spinner v-if="loading" />
     <div
       @wheel.prevent="ScrollHorizontal($event)"
       class="my-5 flex flex-col flex-wrap gap-2 max-h-72 overflow-x-scroll scroll-smooth will-change-scroll w-full"
