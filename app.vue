@@ -3,7 +3,7 @@
 <template>
   <div class="container mx-auto max-w-3xl">
     <div class="flex flex-col gap-10 items-center">
-      <Navbar>
+      <Navbar class="sticky top-0 bg-base-100">
         <SpeedBar />
       </Navbar>
       <NuxtPage />
