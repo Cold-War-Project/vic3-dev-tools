@@ -2,7 +2,7 @@
 import { Database } from "~/utils/database.types";
 import { AuthError } from "@supabase/supabase-js";
 const client = useSupabaseAuthClient<Database>();
-const loading = ref(false);
+const { loading, setLoading } = useLoading();
 const router = useRouter();
 definePageMeta({
   name: "auth",
@@ -17,7 +17,7 @@ definePageMeta({
 });
 
 async function handleLogin(provider: "github" | "gitlab" | "bitbucket") {
-  loading.value = true;
+  setLoading(true);
   await client.auth
     .signInWithOAuth({ provider })
     .then(({ error }) => {
@@ -31,7 +31,7 @@ async function handleLogin(provider: "github" | "gitlab" | "bitbucket") {
       console.error(error);
     })
     .finally(() => {
-      loading.value = false;
+      setLoading(false);
     });
 }
 </script>
