@@ -5,8 +5,9 @@ import {
   faBitbucket,
   faGitlab,
 } from "@fortawesome/free-brands-svg-icons";
+import { faUpload, faDownload } from "@fortawesome/free-solid-svg-icons";
 
-library.add(faGithub, faBitbucket, faGitlab);
+library.add(faGithub, faBitbucket, faGitlab, faUpload, faDownload);
 
 config.autoAddCss = false;
 
