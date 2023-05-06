@@ -6,7 +6,7 @@ const user = useSupabaseUser();
 const { avatar, updateUserData } = useUserData();
 const { avatarPath, uploadAvatar } = useAvatar();
 
-const uploading = ref(false);
+const { loading, setLoading } = useLoading();
 const files = ref();
 
 const generateRandomString = (length = 18) =>
@@ -14,7 +14,7 @@ const generateRandomString = (length = 18) =>
 
 async function handleUpload(event: { target: { files: any } }) {
   files.value = event.target.files;
-  uploading.value = true;
+  setLoading(true);
   if (!files.value || files.value.length === 0) {
     return;
   }
@@ -34,7 +34,7 @@ async function handleUpload(event: { target: { files: any } }) {
       console.error("Error uploading avatar:", error.message);
     })
     .finally(() => {
-      uploading.value = false;
+      setLoading(false);
     });
 }
 </script>
@@ -54,11 +54,7 @@ async function handleUpload(event: { target: { files: any } }) {
           @change="handleUpload"
           class="file-input file-input-bordered file-input-primary w-full max-w-xs"
         />
-        <div
-          v-if="uploading"
-          class="radial-progress animate-spin"
-          style="--value: 20; --size: 40px; --thickness: 6px"
-        ></div>
+        <Spinner v-if="loading" />
       </div>
     </form>
   </div>
