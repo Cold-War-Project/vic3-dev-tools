@@ -9,9 +9,10 @@ defineProps<{
 <template>
   <button
     :type="type ? type : 'button'"
-    class="btn"
+    class="btn gap-2"
     :class="extraClassStyle ? extraClassStyle : ''"
   >
     {{ text }}
+    <slot />
   </button>
 </template>
